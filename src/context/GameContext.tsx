@@ -10,6 +10,7 @@ import React, {
 } from 'react';
 
 import { buildQuest, buildReward, buildShieldPurchase, createInitialState, reducer } from '../domain/reducer';
+import { evaluateAchievements, type AchievementStatus } from '../domain/achievements';
 import { buildTemplate, planGeneration } from '../domain/recurrence';
 import { goldFromXp } from '../domain/economy';
 import { SHIELD_COST, SHIELD_MAX } from '../domain/shield';
@@ -59,6 +60,12 @@ export interface GameContextValue {
   levelUp: LevelInfo | null;
   /** Última conclusão (feedback transitório — não é persistido). */
   completion: CompletionFeedback | null;
+  /**
+   * Conquista desbloqueada e ainda não anunciada (alimenta o toast do topo).
+   * É **derivada** do log + `seenAchievements`, então várias conquistas ao mesmo
+   * tempo aparecem em fila sem precisar de fila em estado.
+   */
+  achievementFeedback: AchievementStatus | null;
   /** Chave (YYYY-MM-DD) do dia atual, reativa à virada do dia. */
   today: string;
   /** Missões criadas hoje. */
@@ -107,6 +114,8 @@ export interface GameContextValue {
   dismissCompletion: () => void;
   /** Desmarca a missão recém-concluída, removendo o XP ganho. */
   undoCompletion: () => void;
+  /** Marca a conquista anunciada como vista (persistido — não repete o toast). */
+  dismissAchievement: () => void;
 }
 
 const GameContext = createContext<GameContextValue | null>(null);
@@ -123,6 +132,19 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   // Estatísticas derivadas (XP, nível, sequência, ouro, escudos...).
   // Ficam fora do memo do contexto para alimentar também os callbacks.
   const stats = useMemo(() => deriveStats(state, today), [state, today]);
+
+  // Conquistas avaliadas do log (desbloqueio + data) — derivadas, nunca gravadas.
+  const achievements = useMemo(() => evaluateAchievements(state, today), [state, today]);
+
+  // Fila implícita: a primeira conquista desbloqueada que ainda não foi anunciada.
+  const achievementFeedback = useMemo(
+    () =>
+      achievements.find(
+        (status) =>
+          status.unlockedAt !== null && !state.seenAchievements.includes(status.achievement.id)
+      ) ?? null,
+    [achievements, state.seenAchievements]
+  );
 
   // Carrega o progresso salvo ao iniciar.
   useEffect(() => {
@@ -294,6 +316,11 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
 
   const dismissCompletion = useCallback(() => setCompletion(null), []);
 
+  const dismissAchievement = useCallback(() => {
+    if (!achievementFeedback) return;
+    dispatch({ type: 'MARK_ACHIEVEMENT_SEEN', id: achievementFeedback.achievement.id });
+  }, [achievementFeedback]);
+
   const undoCompletion = useCallback(() => {
     if (completion) toggleQuest(completion.questId);
   }, [completion, toggleQuest]);
@@ -398,6 +425,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       hydrated,
       levelUp,
       completion,
+      achievementFeedback,
       today,
       todayQuests,
       overdueQuests,
@@ -428,6 +456,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       dismissLevelUp,
       dismissCompletion,
       undoCompletion,
+      dismissAchievement,
     };
   }, [
     state,
@@ -435,6 +464,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     hydrated,
     levelUp,
     completion,
+    achievementFeedback,
     today,
     addQuest,
     updateQuest,
@@ -458,6 +488,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     dismissLevelUp,
     dismissCompletion,
     undoCompletion,
+    dismissAchievement,
   ]);
 
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;

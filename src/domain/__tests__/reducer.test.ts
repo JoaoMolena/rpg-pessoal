@@ -39,6 +39,7 @@ function makeState(quests: Quest[], completions: Completion[] = []): AppState {
     notifications: DEFAULT_NOTIFICATION_SETTINGS,
     rewards: [],
     purchases: [],
+    seenAchievements: [],
   };
 }
 

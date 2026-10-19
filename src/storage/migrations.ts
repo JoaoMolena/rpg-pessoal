@@ -1,3 +1,4 @@
+import { unlockedAchievementIds } from '../domain/achievements';
 import { totalXpFrom } from '../domain/stats';
 import { goldFromXp } from '../domain/economy';
 import { CATEGORY_KEYS, DIFFICULTIES, DIFFICULTY_KEYS } from '../theme/game';
@@ -25,9 +26,9 @@ import { parseTime } from '../utils/time';
  *
  * Toda leitura passa por aqui, de forma que o app nunca recebe um objeto mal
  * formado: campos ausentes ganham valores padrão e estados de versões antigas
- * são migrados (v1 → v2 → … → v8) reconstruindo o log de conclusões e
+ * são migrados (v1 → v2 → … → v9) reconstruindo o log de conclusões e
  * adicionando os campos novos (categoria/ouro/bônus do log, recorrências,
- * notificações, loja, subtarefas) — sem perder XP nem ouro.
+ * notificações, loja, subtarefas, conquistas vistas) — sem perder XP nem ouro.
  */
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -247,19 +248,24 @@ function migrateV1toV2(raw: Record<string, unknown>): AppState {
   const legacyStats = isRecord(raw.stats) ? raw.stats : {};
   const legacyTotalXp = asNumber(legacyStats.totalXp, 0);
 
-  return {
+  const state: AppState = {
     schemaVersion: SCHEMA_VERSION,
     playerName: asString(raw.playerName, 'Herói') || 'Herói',
     playerAvatar: asString(raw.playerAvatar, '⚔️') || '⚔️',
     quests,
     completions,
     maxTotalXp: Math.max(legacyTotalXp, totalXpFrom(completions)),
-    // Recorrências, notificações e loja só existem a partir de versões posteriores.
+    // Recorrências, notificações, loja e conquistas só existem a partir de versões posteriores.
     templates: [],
     notifications: { ...DEFAULT_NOTIFICATION_SETTINGS },
     rewards: [],
     purchases: [],
+    seenAchievements: [],
   };
+
+  // Conquistas já desbloqueadas nascem vistas (como na migração v8 → v9).
+  state.seenAchievements = unlockedAchievementIds(state);
+  return state;
 }
 
 /** Estado já na versão atual: normaliza campos faltantes/inválidos. */
@@ -292,7 +298,7 @@ function normalizeCurrent(raw: Record<string, unknown>): AppState {
     .map(normalizePurchase)
     .filter((purchase): purchase is Purchase => purchase !== null);
 
-  return {
+  const state: AppState = {
     schemaVersion: SCHEMA_VERSION,
     playerName: asString(raw.playerName, 'Herói') || 'Herói',
     playerAvatar: asString(raw.playerAvatar, '⚔️') || '⚔️',
@@ -303,7 +309,17 @@ function normalizeCurrent(raw: Record<string, unknown>): AppState {
     notifications: normalizeNotifications(raw.notifications),
     rewards,
     purchases,
+    seenAchievements: [],
   };
+
+  // Até a v8 as conquistas não eram persistidas. Quem já tinha conquistas
+  // desbloqueadas as recebe marcadas como vistas — nada de chuva de toasts no
+  // primeiro boot após a atualização (nem ao importar um backup antigo).
+  state.seenAchievements = Array.isArray(raw.seenAchievements)
+    ? raw.seenAchievements.filter((id): id is string => typeof id === 'string')
+    : unlockedAchievementIds(state);
+
+  return state;
 }
 
 /**

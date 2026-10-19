@@ -47,6 +47,7 @@ function stateWith(completions: Completion[]): AppState {
     notifications: DEFAULT_NOTIFICATION_SETTINGS,
     rewards: [],
     purchases: [],
+    seenAchievements: [],
   };
 }
 

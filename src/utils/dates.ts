@@ -29,6 +29,20 @@ export function formatShortDate(iso: string): string {
   return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
 }
 
+/** Formata uma data ISO para DD/MM/AAAA (datas de conquistas). */
+export function formatFullDate(iso: string): string {
+  return new Date(iso).toLocaleDateString('pt-BR');
+}
+
+/**
+ * Meio-dia local de uma chave YYYY-MM-DD, como ISO.
+ * O meio-dia evita que o fuso jogue a data para o dia anterior/seguinte.
+ */
+export function isoFromDateKey(key: string): string {
+  const [year, month, day] = key.split('-').map(Number);
+  return new Date(year, month - 1, day, 12, 0, 0, 0).toISOString();
+}
+
 /** Saudação de acordo com o horário do dia. */
 export function getGreeting(): string {
   const hour = new Date().getHours();

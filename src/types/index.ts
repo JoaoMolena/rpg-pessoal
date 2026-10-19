@@ -10,7 +10,7 @@ export type QuestCategory =
 export type QuestDifficulty = 'facil' | 'media' | 'dificil' | 'epica';
 
 /** Versão atual do formato de dados persistido. */
-export const SCHEMA_VERSION = 8;
+export const SCHEMA_VERSION = 9;
 
 /** Dia da semana: 0 = domingo ... 6 = sábado (mesma convenção de `Date.getDay()`). */
 export type Weekday = 0 | 1 | 2 | 3 | 4 | 5 | 6;
@@ -190,6 +190,13 @@ export interface AppState {
   rewards: Reward[];
   /** Histórico de resgates (fonte de verdade do ouro gasto e dos escudos). */
   purchases: Purchase[];
+  /**
+   * Ids das conquistas **já anunciadas** ao jogador.
+   *
+   * É o único dado sobre conquistas que precisa ser persistido: o desbloqueio e a
+   * data são derivados do log, mas "já mostrei o toast disso" não é.
+   */
+  seenAchievements: string[];
 }
 
 /**

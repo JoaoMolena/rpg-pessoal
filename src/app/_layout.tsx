@@ -3,6 +3,7 @@ import { Stack } from 'expo-router';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
 import { ConfirmProvider } from '../components/ConfirmDialog';
+import { AchievementFeedback } from '../components/AchievementFeedback';
 import { CompletionFeedback } from '../components/CompletionFeedback';
 import { LevelUpOverlay } from '../components/LevelUpOverlay';
 import { GameProvider, useGame } from '../context/GameContext';
@@ -71,6 +72,7 @@ function AppShell() {
           options={{ presentation: 'modal', title: 'Nova Recompensa' }}
         />
       </Stack>
+      <AchievementFeedback />
       <CompletionFeedback />
       <LevelUpOverlay />
     </>

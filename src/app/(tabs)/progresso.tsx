@@ -6,17 +6,19 @@ import { EmptyState } from '../../components/EmptyState';
 import { StatCard } from '../../components/StatCard';
 import { XPBar } from '../../components/XPBar';
 import { useGame } from '../../context/GameContext';
+import { evaluateAchievements } from '../../domain/achievements';
 import { SHIELD_MAX } from '../../domain/shield';
 import { nextStreakTier } from '../../domain/streak';
-import { ACHIEVEMENTS, CATEGORIES, CATEGORY_KEYS, cardShadow, colors } from '../../theme/game';
+import { CATEGORIES, CATEGORY_KEYS, cardShadow, colors } from '../../theme/game';
 import type { Quest, QuestCategory } from '../../types';
-import { formatShortDate } from '../../utils/dates';
+import { formatFullDate, formatShortDate } from '../../utils/dates';
 import { missionCountLabel } from '../../utils/format';
 
 export default function ProgressScreen() {
-  const { state, stats, levelInfo } = useGame();
+  const { state, stats, levelInfo, today } = useGame();
 
-  const unlocked = ACHIEVEMENTS.filter((a) => a.check(stats));
+  const achievements = evaluateAchievements(state, today);
+  const unlocked = achievements.filter((status) => status.unlocked);
   // Próximo degrau de bônus a partir da sequência que o jogador já tem hoje.
   const nextTier = nextStreakTier(stats.streakForBonus);
 
@@ -142,40 +144,42 @@ export default function ProgressScreen() {
 
       {/* Conquistas */}
       <Text style={styles.sectionTitle}>
-        Conquistas ({unlocked.length}/{ACHIEVEMENTS.length})
+        Conquistas ({unlocked.length}/{achievements.length})
       </Text>
       <View style={styles.achievementList}>
-        {ACHIEVEMENTS.map((achievement) => {
-          const isUnlocked = achievement.check(stats);
-          return (
+        {achievements.map(({ achievement, unlocked: isUnlocked, unlockedAt }) => (
+          <View
+            key={achievement.id}
+            style={[styles.achievement, !isUnlocked && styles.achievementLocked]}
+          >
             <View
-              key={achievement.id}
-              style={[styles.achievement, !isUnlocked && styles.achievementLocked]}
+              style={[
+                styles.achievementIcon,
+                { backgroundColor: isUnlocked ? `${colors.primary}22` : colors.surfaceAlt },
+              ]}
             >
-              <View
-                style={[
-                  styles.achievementIcon,
-                  { backgroundColor: isUnlocked ? `${colors.primary}22` : colors.surfaceAlt },
-                ]}
-              >
-                <MaterialCommunityIcons
-                  name={isUnlocked ? achievement.icon : 'lock-outline'}
-                  size={20}
-                  color={isUnlocked ? colors.primarySoft : colors.textMuted}
-                />
-              </View>
-              <View style={styles.achievementText}>
-                <Text style={[styles.achievementTitle, !isUnlocked && styles.textMuted]}>
-                  {achievement.title}
-                </Text>
-                <Text style={styles.achievementDesc}>{achievement.description}</Text>
-              </View>
-              {isUnlocked && (
-                <MaterialCommunityIcons name="check-decagram" size={18} color={colors.success} />
-              )}
+              <MaterialCommunityIcons
+                name={isUnlocked ? achievement.icon : 'lock-outline'}
+                size={20}
+                color={isUnlocked ? colors.primarySoft : colors.textMuted}
+              />
             </View>
-          );
-        })}
+            <View style={styles.achievementText}>
+              <Text style={[styles.achievementTitle, !isUnlocked && styles.textMuted]}>
+                {achievement.title}
+              </Text>
+              <Text style={styles.achievementDesc}>{achievement.description}</Text>
+            </View>
+            {isUnlocked && unlockedAt ? (
+              <View style={styles.achievementDate}>
+                <MaterialCommunityIcons name="check-decagram" size={14} color={colors.success} />
+                <Text style={styles.achievementDateText}>{formatFullDate(unlockedAt)}</Text>
+              </View>
+            ) : (
+              <MaterialCommunityIcons name="lock-outline" size={16} color={colors.textMuted} />
+            )}
+          </View>
+        ))}
       </View>
 
       {/* Atributos por categoria */}
@@ -439,6 +443,15 @@ const styles = StyleSheet.create({
   achievementDesc: {
     color: colors.textMuted,
     fontSize: 12.5,
+  },
+  achievementDate: {
+    alignItems: 'flex-end',
+    gap: 2,
+  },
+  achievementDateText: {
+    color: colors.success,
+    fontSize: 11,
+    fontWeight: '800',
   },
   textMuted: {
     color: colors.textMuted,

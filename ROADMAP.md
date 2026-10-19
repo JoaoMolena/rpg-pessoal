@@ -66,7 +66,7 @@ Entregue em **PRs separados**, um por item, com `tsc`, lint, testes e CI verdes.
 | b | Ouro e loja de recompensas personalizadas | ✅ |
 | c | Escudo de streak e bônus de XP por sequência | ✅ |
 | d | Missões épicas com subtarefas | ✅ |
-| e | Novas conquistas com data e toast | ⏳ |
+| e | Novas conquistas com data e toast | ✅ |
 
 ### (a) Atributos por categoria — decisões
 
@@ -105,5 +105,15 @@ Entregue em **PRs separados**, um por item, com `tsc`, lint, testes e CI verdes.
 - **Balanceamento**: subtarefas não mudam XP, então a a 175 XP/dia (1 épica + 1 difícil + 1 média) o total é **idêntico** ao do item (c) — mês **5.250 → 6.503 XP** (nível 11 → 12) e trimestre **15.750 → 22.283 XP** (nível 18 → 22), com o bônus respondendo por 19% / 29%. Quebrar a épica em 3 passos muda a *forma* de jogar, não o prêmio.
 - **Migração v7 → v8**: `subtasks` ausente/inválido vira `[]`; passos sem título são descartados e um `id` ausente ganha fallback determinístico (`sub-<índice>`). Sem perda de XP, ouro ou histórico.
 - **UI**: o formulário de missão ganha a seção **Subtarefas** (limite de 12 passos, com dica para épicas); o cartão de missão ganha a pílula `N/M passos` e a checklist tocável (o checkbox principal vira o atalho "marcar/desmarcar todos"); a missão inicial de estudo já vem com 3 passos para apresentar o recurso.
+
+### (e) Novas conquistas com data e toast — decisões
+
+- **Modelo**: `AppState` ganha `seenAchievements: string[]` — os ids das conquistas **já anunciadas**. É o único dado de conquista que precisa ser persistido: o desbloqueio e a **data** são derivados do log. `schemaVersion` 8 → 9.
+- **Conquista agora é regra + data**: o catálogo sai de `theme/game.ts` e vai para `src/domain/achievements.ts`. Cada conquista tem `unlockedAt(progress): string | null` (instante ISO do desbloqueio) em vez de um booleano. A data é derivada varrendo o log **cronológico**: n-ésima conclusão, XP acumulado que cruza o alvo, nível pela curva `50*(L−1)²`, n-ésima épica (o XP base `xp − bonusXp` identifica a dificuldade), sequência (com escudo), atributo de categoria, categorias cobertas e primeiro resgate.
+- **Catálogo: 6 → 17 conquistas**. Novas: `Mil de XP` (1.000 XP), `Veterano de Guerra` (50 missões), `Centurião` (100 missões), `Caçador de Épicos` (1ª épica), `Matador de Dragões` (10 épicas), `Mês de Ferro` (30 dias seguidos), `Mestre` (nível 20), `Especialista` (atributo nível 5), `Multidisciplinar` (7 categorias), `Guardião` (comprou escudo), `Recompensa Merecida` (resgatou recompensa).
+- **Toast**: uma conquista desbloqueada e ainda não vista vira um **banner no topo** (não disputa espaço com o toast de conclusão, que sobe de baixo), com haptics, data e auto-dismiss. Fechar marca como vista (persistido) e o próximo da fila assume. A fila é **derivada** (`seenAchievements` + avaliação), então várias conquistas de uma vez não precisam de fila em estado: cada dismiss deixa a próxima como "não vista".
+- **Balanceamento** (175 XP/dia) — XP e ouro **intocados**: conquista é leitura do log, nunca crédito. Linha do tempo a 175 XP/dia (1 épica + 1 difícil + 1 média, bônus do item (c) incluso): `Primeiro Passo` e `Caçador de Épicos` no **dia 1**; `Multidisciplinar` no **dia 2**; `Constância` no **dia 3**; `Em Ritmo de Combate` no **dia 4**; `Ascensão` (800 XP) no **dia 5**; `Mil de XP` no **dia 6**; `Semana Perfeita` no **dia 7**; `Matador de Dragões` (10 épicas) no **dia 10**; `Especialista` (atributo nível 5, pela categoria mais forte a 30%) no **dia 16**; `Veterano de Guerra` (50 missões) no **dia 17**; `Mês de Ferro` no **dia 30**; `Centurião` (100 missões) no **dia 34**; `Mestre` (nível 20, 18.050 XP) por volta do **dia 74**. `Guardião`/`Recompensa Merecida` dependem do que o jogador compra (o ouro rende ~3 dias por escudo). Ao fim dos horizontes: **30 dias** → 33 missões, nível 12, recorde 30 dias, ~6.503 XP; **90 dias** → 99 missões, nível 22, recorde 90 dias, ~22.283 XP.
+- **Migração v8 → v9**: `seenAchievements` **ausente** recebe as conquistas já desbloqueadas naquele estado (quem já jogava não leva uma chuva de toasts no primeiro boot após a atualização — nem ao importar um backup antigo); **presente**, é preservado e ids não-string são filtrados. Sem perda de XP, ouro ou histórico.
+- **UI**: a aba Progresso troca o check por um selo **verde com a data** (`Desbloqueada em DD/MM/AAAA`) em cada conquista desbloqueada; o banner de conquista aparece no topo em qualquer tela.
 
 > Fases 4+ ainda não definidas.

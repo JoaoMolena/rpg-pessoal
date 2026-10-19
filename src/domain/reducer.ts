@@ -61,6 +61,7 @@ export type Action =
    * (quantos dias já foram cobertos) — o reducer continua sem olhar o relógio.
    */
   | { type: 'REDEEM_SHIELD'; purchase: Purchase; usedShields: number }
+  | { type: 'MARK_ACHIEVEMENT_SEEN'; id: string }
   | { type: 'RESET'; state: AppState };
 
 /**
@@ -200,6 +201,7 @@ export function createInitialState(now: Date = new Date()): AppState {
     notifications: DEFAULT_NOTIFICATION_SETTINGS,
     rewards: [],
     purchases: [],
+    seenAchievements: [],
   };
 }
 
@@ -381,6 +383,12 @@ export function reducer(state: AppState, action: Action): AppState {
       if (action.purchase.cost > goldBalance(state.completions, state.purchases)) return state;
       return { ...state, purchases: [action.purchase, ...state.purchases] };
     }
+
+    case 'MARK_ACHIEVEMENT_SEEN':
+      // Idempotente: marcar duas vezes não duplica o id nem mexe no resto.
+      return state.seenAchievements.includes(action.id)
+        ? state
+        : { ...state, seenAchievements: [...state.seenAchievements, action.id] };
 
     case 'RESET':
       return action.state;
