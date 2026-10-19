@@ -46,6 +46,14 @@ function AppShell() {
           name="editar-perfil"
           options={{ presentation: 'modal', title: 'Editar Perfil' }}
         />
+        <Stack.Screen
+          name="recorrentes"
+          options={{ presentation: 'modal', title: 'Missões recorrentes' }}
+        />
+        <Stack.Screen
+          name="nova-recorrente"
+          options={{ presentation: 'modal', title: 'Nova recorrente' }}
+        />
       </Stack>
       <LevelUpOverlay />
     </>

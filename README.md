@@ -6,6 +6,7 @@ Transforme suas tarefas diárias em missões, ganhe XP, soba de nível e mantenh
 ## ✨ Funcionalidades
 
 - **Missões diárias**: crie, edite, conclua e exclua missões com categoria (Saúde, Estudo, Trabalho, Finanças, Lazer, Social, Outros) e dificuldade (Fácil, Média, Difícil, Épica).
+- **Missões recorrentes**: crie modelos que geram a missão do dia automaticamente — diária, em dias escolhidos da semana ou semanal. A geração é idempotente (abrir o app duas vezes no mesmo dia não duplica) e não retroage: dias não abertos não criam missões. Dá para pausar sem apagar o histórico.
 - **Sistema de XP e níveis**: cada missão concluída concede XP conforme a dificuldade; o nível é calculado a partir do XP acumulado, com curva de dificuldade crescente.
 - **Títulos (ranks)**: Recruta → Aprendiz → Aventureiro → Herói → Veterano → Elite → Mestre → Lenda → Mítico.
 - **Sequência (streak)**: acompanhe os dias consecutivos com pelo menos uma missão concluída. O streak volta a zero ao passar um dia inteiro sem concluir nada (não há bônus de XP por constância).
@@ -14,7 +15,7 @@ Transforme suas tarefas diárias em missões, ganhe XP, soba de nível e mantenh
 - **Celebração de Level Up**: overlay animado quando você sobe de nível.
 - **Perfil personalizável**: nome e avatar do herói.
 - **Persistência local**: todo o progresso é salvo com `AsyncStorage` e sobrevive ao fechamento do app.
-- **Dados versionados**: o estado salvo tem `schemaVersion` e passa por migração/validação na leitura (v1 → v2), sem perder XP.
+- **Dados versionados**: o estado salvo tem `schemaVersion` e passa por migração/validação na leitura (v1 → v2 → v3), sem perder XP.
 - **Modo escuro moderno**: paleta escura com gradientes roxo/ciano, cartões arredondados e sombras suaves.
 
 ## 🚀 Como executar
@@ -43,16 +44,19 @@ src/
 │   │   ├── missoes.tsx     # Missões (filtros: hoje/pendentes/concluídas/todas)
 │   │   └── progresso.tsx   # Progresso (stats, conquistas, histórico)
 │   ├── nova-missao.tsx     # Modal de criação/edição de missão
+│   ├── recorrentes.tsx     # Modal de missões recorrentes (listar/pausar/excluir)
+│   ├── nova-recorrente.tsx # Modal de criação/edição de missão recorrente
 │   └── editar-perfil.tsx   # Modal de perfil (nome, avatar, reset)
-├── components/             # Componentes reutilizáveis (inclui ConfirmDialog)
-├── context/GameContext.tsx # Estado global + persistência + hidratação
+├── components/             # Componentes reutilizáveis (ConfirmDialog, TemplateCard...)
+├── context/GameContext.tsx # Estado global + persistência + hidratação + geração diária
 ├── domain/                 # Regras puras (reducer + estatísticas derivadas)
 │   ├── reducer.ts          # Reducer puro (ações entram com id/data prontos)
+│   ├── recurrence.ts       # Recorrência pura (casamento por dia + plano de geração)
 │   └── stats.ts            # XP, streak e nível derivados do log de conclusões
 ├── hooks/useToday.ts       # "Hoje" reativo (AppState + virada do dia)
 ├── storage/
 │   ├── storage.ts          # Leitura/escrita no AsyncStorage
-│   └── migrations.ts       # Validação + migração de schema (v1 → v2)
+│   └── migrations.ts       # Validação + migração de schema (v1 → v2 → v3)
 ├── theme/game.ts           # Cores, gradientes, categorias, dificuldades, conquistas
 ├── types/index.ts          # Tipos do domínio
 └── utils/

@@ -35,6 +35,7 @@ function stateWith(completions: Completion[]): AppState {
     quests: [quest('q1')],
     completions,
     maxTotalXp: totalXpFrom(completions),
+    templates: [],
   };
 }
 

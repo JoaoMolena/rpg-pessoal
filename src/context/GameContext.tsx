@@ -10,10 +10,11 @@ import React, {
 } from 'react';
 
 import { buildQuest, createInitialState, reducer } from '../domain/reducer';
+import { buildTemplate, planGeneration } from '../domain/recurrence';
 import { deriveStats } from '../domain/stats';
 import { useToday } from '../hooks/useToday';
 import { clearState, loadState, saveState } from '../storage/storage';
-import type { AppState, GameStats, Quest, QuestInput } from '../types';
+import type { AppState, GameStats, Quest, QuestInput, QuestTemplate, QuestTemplateInput } from '../types';
 import { dateKey } from '../utils/dates';
 import { createId } from '../utils/id';
 import { didLevelUp, getLevelInfo, type LevelInfo } from '../utils/level';
@@ -36,10 +37,16 @@ export interface GameContextValue {
   overdueQuests: Quest[];
   /** Quantidade de missões pendentes (hoje + atrasadas). */
   pendingCount: number;
+  /** Modelos de missões recorrentes. */
+  templates: QuestTemplate[];
   addQuest: (input: QuestInput) => void;
   updateQuest: (id: string, input: QuestInput) => void;
   toggleQuest: (id: string) => void;
   deleteQuest: (id: string) => void;
+  addTemplate: (input: QuestTemplateInput) => void;
+  updateTemplate: (id: string, input: QuestTemplateInput) => void;
+  setTemplateActive: (id: string, active: boolean) => void;
+  deleteTemplate: (id: string) => void;
   setPlayer: (name: string, avatar: string) => void;
   resetProgress: () => void;
   dismissLevelUp: () => void;
@@ -88,6 +95,16 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     maxXpRef.current = state.maxTotalXp;
   }, [state.maxTotalXp, hydrated]);
 
+  // Gera as missões de hoje a partir dos modelos recorrentes.
+  // Só roda após a hidratação e sempre para "hoje" — nunca retroage.
+  useEffect(() => {
+    if (!hydrated) return;
+    const newQuests = planGeneration(state.templates, state.quests, today, createId);
+    if (newQuests.length > 0) {
+      dispatch({ type: 'GENERATE_QUESTS', quests: newQuests, date: today });
+    }
+  }, [hydrated, today, state.templates, state.quests]);
+
   const addQuest = useCallback((input: QuestInput) => {
     dispatch({ type: 'ADD_QUEST', quest: buildQuest(input, createId(), dateKey()) });
   }, []);
@@ -111,6 +128,22 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
 
   const deleteQuest = useCallback((id: string) => {
     dispatch({ type: 'DELETE_QUEST', id });
+  }, []);
+
+  const addTemplate = useCallback((input: QuestTemplateInput) => {
+    dispatch({ type: 'ADD_TEMPLATE', template: buildTemplate(input, createId()) });
+  }, []);
+
+  const updateTemplate = useCallback((id: string, input: QuestTemplateInput) => {
+    dispatch({ type: 'UPDATE_TEMPLATE', id, input });
+  }, []);
+
+  const setTemplateActive = useCallback((id: string, active: boolean) => {
+    dispatch({ type: 'SET_TEMPLATE_ACTIVE', id, active });
+  }, []);
+
+  const deleteTemplate = useCallback((id: string) => {
+    dispatch({ type: 'DELETE_TEMPLATE', id });
   }, []);
 
   const setPlayer = useCallback((name: string, avatar: string) => {
@@ -142,10 +175,15 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       todayQuests,
       overdueQuests,
       pendingCount,
+      templates: state.templates,
       addQuest,
       updateQuest,
       toggleQuest,
       deleteQuest,
+      addTemplate,
+      updateTemplate,
+      setTemplateActive,
+      deleteTemplate,
       setPlayer,
       resetProgress,
       dismissLevelUp,
@@ -159,6 +197,10 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     updateQuest,
     toggleQuest,
     deleteQuest,
+    addTemplate,
+    updateTemplate,
+    setTemplateActive,
+    deleteTemplate,
     setPlayer,
     resetProgress,
     dismissLevelUp,

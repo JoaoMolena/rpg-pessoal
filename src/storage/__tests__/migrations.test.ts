@@ -49,6 +49,7 @@ describe('bug #10 - migração e validação do estado salvo', () => {
     expect(deriveStats(migrated!, '2026-06-02').totalXp).toBe(110);
     expect(migrated!.maxTotalXp).toBe(110);
     expect(migrated!.quests).toHaveLength(3);
+    expect(migrated!.templates).toEqual([]); // recorrências só existem a partir da v3
   });
 
   it('reconstrói a data da conclusão quando o v1 não tinha completedAt', () => {
@@ -67,9 +68,9 @@ describe('bug #10 - migração e validação do estado salvo', () => {
     expect(deriveStats(migrated!).totalXp).toBe(0);
   });
 
-  it('preserva um estado já na v2', () => {
+  it('migra um estado v2 (sem templates) para a v3 sem perder XP', () => {
     const v2 = {
-      schemaVersion: SCHEMA_VERSION,
+      schemaVersion: 2,
       playerName: 'Bruno',
       playerAvatar: '🐉',
       quests: [
@@ -88,8 +89,65 @@ describe('bug #10 - migração e validação do estado salvo', () => {
       maxTotalXp: 25,
     };
 
-    const migrated = migrateState(v2);
-    expect(migrated).toEqual(v2);
+    const migrated = migrateState(v2)!;
+    expect(migrated.schemaVersion).toBe(SCHEMA_VERSION);
+    expect(migrated.templates).toEqual([]);
+    expect(totalXpFrom(migrated.completions)).toBe(25);
+    expect(deriveStats(migrated, '2026-06-01').totalXp).toBe(25);
+  });
+
+  it('preserva um estado já na versão atual (com recorrências)', () => {
+    const current = {
+      schemaVersion: SCHEMA_VERSION,
+      playerName: 'Bruno',
+      playerAvatar: '🐉',
+      quests: [
+        {
+          id: 'q1',
+          title: 'Correr',
+          category: 'saude',
+          difficulty: 'media',
+          xpReward: 25,
+          date: '2026-06-01',
+          completed: true,
+          completedAt: '2026-06-01T08:00:00.000Z',
+          templateId: 't1',
+        },
+      ],
+      completions: [{ id: 'c1', questId: 'q1', xp: 25, at: '2026-06-01T08:00:00.000Z' }],
+      maxTotalXp: 25,
+      templates: [
+        {
+          id: 't1',
+          title: 'Correr',
+          category: 'saude',
+          difficulty: 'media',
+          recurrence: { kind: 'weekdays', days: [1, 3, 5] },
+          active: true,
+          lastGeneratedDate: '2026-06-01',
+        },
+      ],
+    };
+
+    expect(migrateState(current)).toEqual(current);
+  });
+
+  it('descarta recorrências malformadas e cai no padrão diário', () => {
+    const migrated = migrateState({
+      schemaVersion: SCHEMA_VERSION,
+      quests: [],
+      templates: [
+        { id: 't1', title: 'Ler', recurrence: { kind: 'weekdays', days: [9, 3] } },
+        { title: 'sem id' },
+        'lixo',
+      ],
+    })!;
+
+    expect(migrated.templates).toHaveLength(1);
+    expect(migrated.templates[0].id).toBe('t1');
+    expect(migrated.templates[0].recurrence).toEqual({ kind: 'weekdays', days: [3] });
+    expect(migrated.templates[0].active).toBe(true);
+    expect(migrated.templates[0].difficulty).toBe('media'); // padrão
   });
 
   it('retorna null para dados irrecuperáveis', () => {

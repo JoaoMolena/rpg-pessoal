@@ -1,4 +1,12 @@
-import type { AppState, Completion, Quest, QuestCategory, QuestDifficulty } from '../../types';
+import {
+  SCHEMA_VERSION,
+  type AppState,
+  type Completion,
+  type Quest,
+  type QuestCategory,
+  type QuestDifficulty,
+  type QuestTemplate,
+} from '../../types';
 import { didLevelUp } from '../../utils/level';
 import { reducer } from '../reducer';
 import { deriveStats } from '../stats';
@@ -17,12 +25,13 @@ function makeQuest(overrides: Partial<Quest> & Pick<Quest, 'id'>): Quest {
 
 function makeState(quests: Quest[], completions: Completion[] = []): AppState {
   return {
-    schemaVersion: 2,
+    schemaVersion: SCHEMA_VERSION,
     playerName: 'Herói',
     playerAvatar: '⚔️',
     quests,
     completions,
     maxTotalXp: 0,
+    templates: [],
   };
 }
 
@@ -133,5 +142,71 @@ describe('reducer puro', () => {
     expect(state.quests).toHaveLength(0);
     expect(state.completions).toHaveLength(0);
     expect(deriveStats(state, '2026-06-01').totalXp).toBe(0);
+  });
+});
+
+describe('missões recorrentes no reducer', () => {
+  const template: QuestTemplate = {
+    id: 't1',
+    title: 'Ler',
+    category: 'estudo',
+    difficulty: 'media',
+    recurrence: { kind: 'daily' },
+    active: true,
+  };
+
+  it('ADD_TEMPLATE adiciona o modelo sem mexer nas missões existentes', () => {
+    const state = makeState([makeQuest({ id: 'q1' })]);
+    const next = reducer(state, { type: 'ADD_TEMPLATE', template });
+
+    expect(next.templates).toEqual([template]);
+    expect(next.quests).toHaveLength(1);
+  });
+
+  it('GENERATE_QUESTS adiciona as missões e marca a última data gerada', () => {
+    const state = reducer(makeState([]), { type: 'ADD_TEMPLATE', template });
+    const quest = makeQuest({ id: 'g1', date: '2026-06-01', templateId: 't1' });
+    const next = reducer(state, { type: 'GENERATE_QUESTS', quests: [quest], date: '2026-06-01' });
+
+    expect(next.quests[0].id).toBe('g1');
+    expect(next.templates[0].lastGeneratedDate).toBe('2026-06-01');
+  });
+
+  it('SET_TEMPLATE_ACTIVE pausa o modelo sem apagá-lo', () => {
+    const state = reducer(makeState([]), { type: 'ADD_TEMPLATE', template });
+    const next = reducer(state, { type: 'SET_TEMPLATE_ACTIVE', id: 't1', active: false });
+
+    expect(next.templates).toHaveLength(1);
+    expect(next.templates[0].active).toBe(false);
+  });
+
+  it('DELETE_TEMPLATE remove só o modelo: as missões geradas ficam no histórico', () => {
+    let state = reducer(makeState([]), { type: 'ADD_TEMPLATE', template });
+    const quest = makeQuest({ id: 'g1', date: '2026-06-01', templateId: 't1' });
+    state = reducer(state, { type: 'GENERATE_QUESTS', quests: [quest], date: '2026-06-01' });
+
+    const next = reducer(state, { type: 'DELETE_TEMPLATE', id: 't1' });
+    expect(next.templates).toHaveLength(0);
+    expect(next.quests).toHaveLength(1);
+  });
+
+  it('UPDATE_TEMPLATE não altera missões já geradas', () => {
+    let state = reducer(makeState([]), { type: 'ADD_TEMPLATE', template });
+    const quest = makeQuest({ id: 'g1', difficulty: 'media', xpReward: 25, templateId: 't1' });
+    state = reducer(state, { type: 'GENERATE_QUESTS', quests: [quest], date: '2026-06-01' });
+
+    const next = reducer(state, {
+      type: 'UPDATE_TEMPLATE',
+      id: 't1',
+      input: {
+        title: 'Ler mais',
+        category: 'estudo',
+        difficulty: 'epica',
+        recurrence: { kind: 'daily' },
+      },
+    });
+
+    expect(next.templates[0].title).toBe('Ler mais');
+    expect(next.quests[0].xpReward).toBe(25); // histórico preservado
   });
 });

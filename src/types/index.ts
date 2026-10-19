@@ -10,7 +10,16 @@ export type QuestCategory =
 export type QuestDifficulty = 'facil' | 'media' | 'dificil' | 'epica';
 
 /** Versão atual do formato de dados persistido. */
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
+
+/** Dia da semana: 0 = domingo ... 6 = sábado (mesma convenção de `Date.getDay()`). */
+export type Weekday = 0 | 1 | 2 | 3 | 4 | 5 | 6;
+
+/** Como uma missão recorrente se repete. */
+export type Recurrence =
+  | { kind: 'daily' }
+  | { kind: 'weekdays'; days: Weekday[] }
+  | { kind: 'weekly'; weekday: Weekday };
 
 export interface Quest {
   id: string;
@@ -25,6 +34,8 @@ export interface Quest {
   completed: boolean;
   /** Data/hora (ISO 8601) da conclusão — espelha o log de `completions`. */
   completedAt?: string;
+  /** Se a missão foi gerada por um modelo recorrente, o id desse modelo. */
+  templateId?: string;
 }
 
 /**
@@ -42,6 +53,25 @@ export interface Completion {
   at: string;
 }
 
+/**
+ * Modelo de missão recorrente.
+ *
+ * Não é uma missão: serve para **gerar** missões do dia (no máximo uma por dia
+ * aplicável) de forma idempotente. Mudar o modelo não altera missões já geradas.
+ */
+export interface QuestTemplate {
+  id: string;
+  title: string;
+  description?: string;
+  category: QuestCategory;
+  difficulty: QuestDifficulty;
+  recurrence: Recurrence;
+  /** Pausada (`false`) deixa de gerar novas missões, sem apagar o histórico. */
+  active: boolean;
+  /** Última data (YYYY-MM-DD) em que gerou missão — evita duplicar ou retroagir. */
+  lastGeneratedDate?: string;
+}
+
 export interface AppState {
   schemaVersion: number;
   playerName: string;
@@ -55,6 +85,8 @@ export interface AppState {
    * evitando farmar a celebração ao desmarcar/marcar a mesma missão.
    */
   maxTotalXp: number;
+  /** Modelos de missões recorrentes. */
+  templates: QuestTemplate[];
 }
 
 /**
@@ -79,4 +111,13 @@ export interface QuestInput {
   description?: string;
   category: QuestCategory;
   difficulty: QuestDifficulty;
+}
+
+/** Dados do formulário de uma missão recorrente. */
+export interface QuestTemplateInput {
+  title: string;
+  description?: string;
+  category: QuestCategory;
+  difficulty: QuestDifficulty;
+  recurrence: Recurrence;
 }

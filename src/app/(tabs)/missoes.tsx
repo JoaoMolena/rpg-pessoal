@@ -92,6 +92,12 @@ export default function MissionsScreen() {
               {missionCountLabel(data.length)} ·{' '}
               {data.reduce((sum, q) => sum + q.xpReward, 0)} XP em jogo
             </Text>
+            <PrimaryButton
+              label="Missões recorrentes"
+              icon="repeat"
+              variant="ghost"
+              onPress={() => router.push('/recorrentes')}
+            />
           </View>
         }
         renderItem={({ item }) => (

@@ -7,6 +7,9 @@ import {
   type Quest,
   type QuestCategory,
   type QuestDifficulty,
+  type QuestTemplate,
+  type Recurrence,
+  type Weekday,
 } from '../types';
 import { dateKey } from '../utils/dates';
 
@@ -15,8 +18,8 @@ import { dateKey } from '../utils/dates';
  *
  * Toda leitura passa por aqui, de forma que o app nunca recebe um objeto mal
  * formado: campos ausentes ganham valores padrão e estados de versões antigas
- * são migrados (v1 → v2) reconstruindo o log de conclusões a partir das missões
- * já concluídas — sem perder XP.
+ * são migrados (v1 → v2 → v3) reconstruindo o log de conclusões e adicionando os
+ * campos novos — sem perder XP.
  */
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -39,6 +42,45 @@ function isDifficulty(value: unknown): value is QuestDifficulty {
   return typeof value === 'string' && (DIFFICULTY_KEYS as string[]).includes(value);
 }
 
+function isWeekday(value: unknown): value is Weekday {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 0 && value <= 6;
+}
+
+/** Normaliza a recorrência; qualquer coisa desconhecida vira diária. */
+function normalizeRecurrence(raw: unknown): Recurrence {
+  if (isRecord(raw)) {
+    if (raw.kind === 'weekly' && isWeekday(raw.weekday)) {
+      return { kind: 'weekly', weekday: raw.weekday };
+    }
+    if (raw.kind === 'weekdays' && Array.isArray(raw.days)) {
+      const days = Array.from(new Set(raw.days.filter(isWeekday)));
+      return { kind: 'weekdays', days };
+    }
+  }
+  return { kind: 'daily' };
+}
+
+function normalizeTemplate(raw: unknown): QuestTemplate | null {
+  if (!isRecord(raw)) return null;
+  const id = asString(raw.id);
+  if (!id) return null;
+
+  const difficulty = isDifficulty(raw.difficulty) ? raw.difficulty : 'media';
+  const description = asString(raw.description);
+
+  return {
+    id,
+    title: asString(raw.title, 'Missão recorrente'),
+    description: description || undefined,
+    category: isCategory(raw.category) ? raw.category : 'outros',
+    difficulty,
+    recurrence: normalizeRecurrence(raw.recurrence),
+    active: raw.active !== false,
+    lastGeneratedDate:
+      typeof raw.lastGeneratedDate === 'string' ? raw.lastGeneratedDate : undefined,
+  };
+}
+
 function normalizeQuest(raw: unknown): Quest | null {
   if (!isRecord(raw)) return null;
   const id = asString(raw.id);
@@ -58,6 +100,7 @@ function normalizeQuest(raw: unknown): Quest | null {
     date,
     completed: raw.completed === true,
     completedAt: typeof raw.completedAt === 'string' ? raw.completedAt : undefined,
+    templateId: typeof raw.templateId === 'string' ? raw.templateId : undefined,
   };
 }
 
@@ -84,7 +127,7 @@ function legacyCompletionDate(quest: Quest): string {
   return new Date(year, month - 1, day, 12, 0, 0, 0).toISOString();
 }
 
-/** Estado v1 (stats armazenadas, sem log) → v2 (log de conclusões). */
+/** Estado v1 (stats armazenadas, sem log) → versão atual (log de conclusões). */
 function migrateV1toV2(raw: Record<string, unknown>): AppState {
   const rawQuests = Array.isArray(raw.quests) ? raw.quests : [];
   const quests = rawQuests
@@ -110,11 +153,13 @@ function migrateV1toV2(raw: Record<string, unknown>): AppState {
     quests,
     completions,
     maxTotalXp: Math.max(legacyTotalXp, totalXpFrom(completions)),
+    // Recorrências só existem a partir da v3.
+    templates: [],
   };
 }
 
-/** Estado já na v2: normaliza campos faltantes/inválidos. */
-function normalizeV2(raw: Record<string, unknown>): AppState {
+/** Estado já na versão atual: normaliza campos faltantes/inválidos. */
+function normalizeCurrent(raw: Record<string, unknown>): AppState {
   const rawQuests = Array.isArray(raw.quests) ? raw.quests : [];
   const quests = rawQuests
     .map(normalizeQuest)
@@ -125,6 +170,11 @@ function normalizeV2(raw: Record<string, unknown>): AppState {
     .map(normalizeCompletion)
     .filter((completion): completion is Completion => completion !== null);
 
+  const rawTemplates = Array.isArray(raw.templates) ? raw.templates : [];
+  const templates = rawTemplates
+    .map(normalizeTemplate)
+    .filter((template): template is QuestTemplate => template !== null);
+
   return {
     schemaVersion: SCHEMA_VERSION,
     playerName: asString(raw.playerName, 'Herói') || 'Herói',
@@ -132,6 +182,7 @@ function normalizeV2(raw: Record<string, unknown>): AppState {
     quests,
     completions,
     maxTotalXp: Math.max(asNumber(raw.maxTotalXp, 0), totalXpFrom(completions)),
+    templates,
   };
 }
 
@@ -146,5 +197,5 @@ export function migrateState(raw: unknown): AppState | null {
   const version = asNumber(raw.schemaVersion, 1);
   if (version > SCHEMA_VERSION) return null; // gravado por um app mais novo: não arrisca
 
-  return version <= 1 ? migrateV1toV2(raw) : normalizeV2(raw);
+  return version <= 1 ? migrateV1toV2(raw) : normalizeCurrent(raw);
 }

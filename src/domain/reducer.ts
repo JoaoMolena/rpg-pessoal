@@ -5,6 +5,8 @@ import {
   type Completion,
   type Quest,
   type QuestInput,
+  type QuestTemplate,
+  type QuestTemplateInput,
 } from '../types';
 import { dateKey } from '../utils/dates';
 import { createId } from '../utils/id';
@@ -24,6 +26,11 @@ export type Action =
   | { type: 'TOGGLE_QUEST'; id: string; completion: Completion }
   | { type: 'DELETE_QUEST'; id: string }
   | { type: 'SET_PLAYER'; name: string; avatar: string }
+  | { type: 'ADD_TEMPLATE'; template: QuestTemplate }
+  | { type: 'UPDATE_TEMPLATE'; id: string; input: QuestTemplateInput }
+  | { type: 'SET_TEMPLATE_ACTIVE'; id: string; active: boolean }
+  | { type: 'DELETE_TEMPLATE'; id: string }
+  | { type: 'GENERATE_QUESTS'; quests: Quest[]; date: string }
   | { type: 'RESET'; state: AppState };
 
 /** Monta uma missão a partir do formulário. `id` e `date` vêm de fora. */
@@ -71,6 +78,7 @@ export function createInitialState(now: Date = new Date()): AppState {
     quests: seed.map((quest) => ({ ...quest, id: createId() })),
     completions: [],
     maxTotalXp: 0,
+    templates: [],
   };
 }
 
@@ -134,6 +142,57 @@ export function reducer(state: AppState, action: Action): AppState {
         quests: state.quests.filter((quest) => quest.id !== action.id),
         completions: state.completions.filter((completion) => completion.questId !== action.id),
       };
+
+    case 'ADD_TEMPLATE':
+      return { ...state, templates: [action.template, ...state.templates] };
+
+    case 'UPDATE_TEMPLATE': {
+      const { input } = action;
+      return {
+        ...state,
+        templates: state.templates.map((template) =>
+          template.id === action.id
+            ? {
+                ...template,
+                title: input.title.trim(),
+                description: input.description?.trim() || undefined,
+                category: input.category,
+                difficulty: input.difficulty,
+                recurrence: input.recurrence,
+              }
+            : template
+        ),
+      };
+    }
+
+    case 'SET_TEMPLATE_ACTIVE':
+      return {
+        ...state,
+        templates: state.templates.map((template) =>
+          template.id === action.id ? { ...template, active: action.active } : template
+        ),
+      };
+
+    case 'DELETE_TEMPLATE':
+      // As missões já geradas continuam no histórico (só o modelo é removido).
+      return {
+        ...state,
+        templates: state.templates.filter((template) => template.id !== action.id),
+      };
+
+    case 'GENERATE_QUESTS': {
+      if (action.quests.length === 0) return state;
+      const generatedFrom = new Set(action.quests.map((quest) => quest.templateId));
+      return {
+        ...state,
+        quests: [...action.quests, ...state.quests],
+        templates: state.templates.map((template) =>
+          generatedFrom.has(template.id)
+            ? { ...template, lastGeneratedDate: action.date }
+            : template
+        ),
+      };
+    }
 
     case 'SET_PLAYER':
       return {
