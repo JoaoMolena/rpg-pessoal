@@ -12,12 +12,14 @@ import {
   type QuestTemplateInput,
   type Reward,
   type RewardInput,
+  type Subtask,
 } from '../types';
 import { dateKey } from '../utils/dates';
 import { createId } from '../utils/id';
 import { goldBalance } from './economy';
 import { SHIELD_COST, SHIELD_MAX } from './shield';
 import { totalXpFrom } from './stats';
+import { allSubtasksDone, reconcileSubtasks, type IdFactory } from './subtasks';
 
 /**
  * Ações do jogo.
@@ -29,8 +31,19 @@ import { totalXpFrom } from './stats';
 export type Action =
   | { type: 'HYDRATE'; state: AppState }
   | { type: 'ADD_QUEST'; quest: Quest }
-  | { type: 'UPDATE_QUEST'; id: string; input: QuestInput }
+  | { type: 'UPDATE_QUEST'; id: string; input: QuestInput; subtasks: Subtask[] }
   | { type: 'TOGGLE_QUEST'; id: string; completion: Completion }
+  | {
+      type: 'TOGGLE_SUBTASK';
+      id: string;
+      subtaskId: string;
+      /**
+       * Conclusão congelada de agora. Só é usada quando o passo fecha a missão;
+       * no caminho de desmarcar ela é ignorada (como no `TOGGLE_QUEST`).
+       */
+      completion: Completion;
+    }
+  | { type: 'SET_ALL_SUBTASKS'; id: string; done: boolean; completion: Completion }
   | { type: 'DELETE_QUEST'; id: string }
   | { type: 'SET_PLAYER'; name: string; avatar: string }
   | { type: 'ADD_TEMPLATE'; template: QuestTemplate }
@@ -50,8 +63,16 @@ export type Action =
   | { type: 'REDEEM_SHIELD'; purchase: Purchase; usedShields: number }
   | { type: 'RESET'; state: AppState };
 
-/** Monta uma missão a partir do formulário. `id` e `date` vêm de fora. */
-export function buildQuest(input: QuestInput, id: string, date: string): Quest {
+/**
+ * Monta uma missão a partir do formulário. `id` e `date` vêm de fora.
+ * As subtarefas nascem desmarcadas (a relação id ↔ título fica em `reconcileSubtasks`).
+ */
+export function buildQuest(
+  input: QuestInput,
+  id: string,
+  date: string,
+  makeId: IdFactory = createId
+): Quest {
   return {
     id,
     title: input.title.trim(),
@@ -61,6 +82,7 @@ export function buildQuest(input: QuestInput, id: string, date: string): Quest {
     xpReward: DIFFICULTIES[input.difficulty].xp,
     date,
     completed: false,
+    subtasks: reconcileSubtasks(input.subtasks ?? [], [], makeId),
   };
 }
 
@@ -68,6 +90,50 @@ export function buildQuest(input: QuestInput, id: string, date: string): Quest {
 function withMaxTotalXp(state: AppState): AppState {
   const totalXp = totalXpFrom(state.completions);
   return totalXp > state.maxTotalXp ? { ...state, maxTotalXp: totalXp } : state;
+}
+
+/**
+ * Aplica uma nova lista de subtarefas e sincroniza a conclusão da missão.
+ *
+ * Missão com passos conclui quando **todos** ficam prontos e volta a pendente
+ * quando algum é desmarcado — sempre gravando/removendo **uma** conclusão no
+ * log (com o XP congelado de agora, como no caminho sem subtarefas).
+ */
+function withSubtasks(
+  state: AppState,
+  quest: Quest,
+  subtasks: Subtask[],
+  completion: Completion
+): AppState {
+  const done = allSubtasksDone(subtasks);
+  const quests = state.quests.map((item) => {
+    if (item.id !== quest.id) return item;
+    if (done === item.completed) return { ...item, subtasks };
+    return {
+      ...item,
+      subtasks,
+      completed: done,
+      completedAt: done ? completion.at : undefined,
+    };
+  });
+
+  if (done && !quest.completed) {
+    return withMaxTotalXp({
+      ...state,
+      quests,
+      completions: [...state.completions, completion],
+    });
+  }
+
+  if (!done && quest.completed) {
+    return {
+      ...state,
+      quests,
+      completions: state.completions.filter((item) => item.questId !== quest.id),
+    };
+  }
+
+  return { ...state, quests };
 }
 
 /** Preço em ouro sempre inteiro e positivo (o formulário pode enviar lixo). */
@@ -100,26 +166,34 @@ export function buildShieldPurchase(id: string, at: string): Purchase {
 /**
  * Estado inicial com o kit de boas-vindas (9 missões, cobrindo as 7 categorias).
  * É uma *fábrica* e pode gerar ids/datas; o reducer em si permanece puro.
+ *
+ * Uma das missões já vem com subtarefas para apresentar as missões épicas.
  */
 export function createInitialState(now: Date = new Date()): AppState {
   const today = dateKey(now);
-  const seed: Omit<Quest, 'id'>[] = [
-    { title: 'Beber 2L de água', description: 'Meta de hidratação diária', category: 'saude', difficulty: 'facil', xpReward: 10, date: today, completed: false },
-    { title: 'Caminhar por 30 minutos', description: 'Passeio ao ar livre ou esteira', category: 'saude', difficulty: 'media', xpReward: 25, date: today, completed: false },
-    { title: 'Estudar focado por 1 hora', description: 'Sem celular durante o bloco de estudo', category: 'estudo', difficulty: 'dificil', xpReward: 50, date: today, completed: false },
-    { title: 'Planejar as metas de amanhã', description: 'Defina até 3 prioridades para o próximo dia', category: 'trabalho', difficulty: 'facil', xpReward: 10, date: today, completed: false },
-    { title: 'Finalizar 1 tarefa importante', description: 'Escolha a missão mais valiosa e conclua', category: 'trabalho', difficulty: 'media', xpReward: 25, date: today, completed: false },
-    { title: 'Registrar os gastos do dia', description: 'Anote tudo que gastou até o fim do dia', category: 'financas', difficulty: 'facil', xpReward: 10, date: today, completed: false },
-    { title: 'Reservar 30 minutos para um hobby', description: 'Música, desenho, leitura, games...', category: 'lazer', difficulty: 'facil', xpReward: 10, date: today, completed: false },
-    { title: 'Mandar mensagem para alguém querido', description: 'Pai, mãe, amigo ou amiga', category: 'social', difficulty: 'facil', xpReward: 10, date: today, completed: false },
-    { title: 'Organizar a mesa ou o espaço de trabalho', description: 'Ambiente limpo = mente limpa', category: 'outros', difficulty: 'media', xpReward: 25, date: today, completed: false },
+  const seed: (Omit<QuestInput, 'subtasks'> & { subtasks?: string[] })[] = [
+    { title: 'Beber 2L de água', description: 'Meta de hidratação diária', category: 'saude', difficulty: 'facil' },
+    { title: 'Caminhar por 30 minutos', description: 'Passeio ao ar livre ou esteira', category: 'saude', difficulty: 'media' },
+    {
+      title: 'Estudar focado por 1 hora',
+      description: 'Sem celular durante o bloco de estudo',
+      category: 'estudo',
+      difficulty: 'dificil',
+      subtasks: ['Silenciar as notificações', 'Separar o material', 'Fazer 1 hora de foco'],
+    },
+    { title: 'Planejar as metas de amanhã', description: 'Defina até 3 prioridades para o próximo dia', category: 'trabalho', difficulty: 'facil' },
+    { title: 'Finalizar 1 tarefa importante', description: 'Escolha a missão mais valiosa e conclua', category: 'trabalho', difficulty: 'media' },
+    { title: 'Registrar os gastos do dia', description: 'Anote tudo que gastou até o fim do dia', category: 'financas', difficulty: 'facil' },
+    { title: 'Reservar 30 minutos para um hobby', description: 'Música, desenho, leitura, games...', category: 'lazer', difficulty: 'facil' },
+    { title: 'Mandar mensagem para alguém querido', description: 'Pai, mãe, amigo ou amiga', category: 'social', difficulty: 'facil' },
+    { title: 'Organizar a mesa ou o espaço de trabalho', description: 'Ambiente limpo = mente limpa', category: 'outros', difficulty: 'media' },
   ];
 
   return {
     schemaVersion: SCHEMA_VERSION,
     playerName: 'Herói',
     playerAvatar: '⚔️',
-    quests: seed.map((quest) => ({ ...quest, id: createId() })),
+    quests: seed.map((input) => buildQuest(input, createId(), today)),
     completions: [],
     maxTotalXp: 0,
     templates: [],
@@ -150,10 +224,29 @@ export function reducer(state: AppState, action: Action): AppState {
                 category: input.category,
                 difficulty: input.difficulty,
                 xpReward: DIFFICULTIES[input.difficulty].xp,
+                subtasks: action.subtasks,
               }
             : quest
         ),
       };
+    }
+
+    case 'TOGGLE_SUBTASK': {
+      const quest = state.quests.find((item) => item.id === action.id);
+      if (!quest) return state;
+
+      const subtasks = quest.subtasks.map((subtask) =>
+        subtask.id === action.subtaskId ? { ...subtask, done: !subtask.done } : subtask
+      );
+      return withSubtasks(state, quest, subtasks, action.completion);
+    }
+
+    case 'SET_ALL_SUBTASKS': {
+      const quest = state.quests.find((item) => item.id === action.id);
+      if (!quest) return state;
+
+      const subtasks = quest.subtasks.map((subtask) => ({ ...subtask, done: action.done }));
+      return withSubtasks(state, quest, subtasks, action.completion);
     }
 
     case 'TOGGLE_QUEST': {

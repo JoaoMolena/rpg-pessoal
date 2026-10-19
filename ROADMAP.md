@@ -65,7 +65,7 @@ Entregue em **PRs separados**, um por item, com `tsc`, lint, testes e CI verdes.
 | a | Atributos por categoria com nível próprio | ✅ |
 | b | Ouro e loja de recompensas personalizadas | ✅ |
 | c | Escudo de streak e bônus de XP por sequência | ✅ |
-| d | Missões épicas com subtarefas | ⏳ |
+| d | Missões épicas com subtarefas | ✅ |
 | e | Novas conquistas com data e toast | ⏳ |
 
 ### (a) Atributos por categoria — decisões
@@ -95,5 +95,15 @@ Entregue em **PRs separados**, um por item, com `tsc`, lint, testes e CI verdes.
 - **Consumo determinístico e prospectivo**: `shieldProtectedDays` anda dia a dia da primeira conclusão até **ontem** (hoje nunca é protegido — o dia ainda não acabou); cada dia sem conclusão com sequência viva e escudo já comprado é coberto, um escudo por dia. A compra vale **do dia da compra em diante**, então não dá para comprar depois para consertar um buraco antigo. Nada é gravado: o mesmo histórico e o mesmo `today` devolvem sempre o mesmo resultado.
 - **Migração v6 → v7**: `bonusXp` ausente vira `0` (nada de bônus retroativo) e `kind` ausente vira `'reward'` (nenhum resgate antigo vira escudo). Sem perda de XP ou ouro; backups antigos migram no import.
 - **UI**: a pílula de sequência do cartão do herói ganha os atalhos `+N% de XP` e `N escudos`; a aba Progresso ganha um cartão de **Sequência** (bônus atual, próximo degrau e escudos em reserva/usados); a loja ganha o cartão **Escudo de sequência**; o toast de conclusão mostra o bônus.
+
+### (d) Missões épicas com subtarefas — decisões
+
+- **Modelo**: `Quest` ganha `subtasks: Subtask[]` (`{ id, title, done }`), sempre presente (vazio quando não há passos); `QuestInput` ganha `subtasks?: string[]` (títulos vindos do formulário). `schemaVersion` 7 → 8.
+- **Regra**: missão com passos **só conclui quando todos** estão marcados — e essa conclusão continua sendo **uma** entrada no log, com o XP/ouro/bônus congelados como nos itens (a)–(c). Missão sem passos mantém o checkbox de sempre. Desmarcar um passo de uma missão concluída desfaz a conclusão (o XP volta), igual ao "Desfazer" atual.
+- **Sem XP parcial (de propósito)**: marcar um passo não credita nada. XP por passo exigiria uma entrada por passo no log, inflaria `completedQuests` e mudaria as regras de ouro e atributo já congeladas nos itens anteriores. O valor do passo é **estrutura**: ele abre a missão e mostra o progresso (`2/4 passos`).
+- **Reconciliação na edição**: passos casados pelo **título** (aparado) preservam `id` e `done`; título novo ganha `id` novo (nasce desmarcado); título removido desaparece. Editar a checklist **nunca** toca no log: o XP congelado não é reescrito por uma edição.
+- **Balanceamento**: subtarefas não mudam XP, então a a 175 XP/dia (1 épica + 1 difícil + 1 média) o total é **idêntico** ao do item (c) — mês **5.250 → 6.503 XP** (nível 11 → 12) e trimestre **15.750 → 22.283 XP** (nível 18 → 22), com o bônus respondendo por 19% / 29%. Quebrar a épica em 3 passos muda a *forma* de jogar, não o prêmio.
+- **Migração v7 → v8**: `subtasks` ausente/inválido vira `[]`; passos sem título são descartados e um `id` ausente ganha fallback determinístico (`sub-<índice>`). Sem perda de XP, ouro ou histórico.
+- **UI**: o formulário de missão ganha a seção **Subtarefas** (limite de 12 passos, com dica para épicas); o cartão de missão ganha a pílula `N/M passos` e a checklist tocável (o checkbox principal vira o atalho "marcar/desmarcar todos"); a missão inicial de estudo já vem com 3 passos para apresentar o recurso.
 
 > Fases 4+ ainda não definidas.

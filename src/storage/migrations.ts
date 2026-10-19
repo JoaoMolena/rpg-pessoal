@@ -14,6 +14,7 @@ import {
   type QuestTemplate,
   type Recurrence,
   type Reward,
+  type Subtask,
   type Weekday,
 } from '../types';
 import { dateKey } from '../utils/dates';
@@ -24,9 +25,9 @@ import { parseTime } from '../utils/time';
  *
  * Toda leitura passa por aqui, de forma que o app nunca recebe um objeto mal
  * formado: campos ausentes ganham valores padrão e estados de versões antigas
- * são migrados (v1 → v2 → v3 → v4 → v5 → v6 → v7) reconstruindo o log de
- * conclusões e adicionando os campos novos (categoria/ouro/bônus do log,
- * recorrências, notificações, loja) — sem perder XP nem ouro.
+ * são migrados (v1 → v2 → … → v8) reconstruindo o log de conclusões e
+ * adicionando os campos novos (categoria/ouro/bônus do log, recorrências,
+ * notificações, loja, subtarefas) — sem perder XP nem ouro.
  */
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -103,6 +104,29 @@ function normalizeTemplate(raw: unknown): QuestTemplate | null {
   };
 }
 
+/**
+ * Normaliza as subtarefas de uma missão épica.
+ *
+ * Até a v7 não existiam: ausentes/inválidas viram `[]`. Entradas sem título são
+ * descartadas e um `id` ausente ganha fallback determinístico (`sub-<índice>`).
+ */
+function normalizeSubtasks(raw: unknown): Subtask[] {
+  if (!Array.isArray(raw)) return [];
+
+  const subtasks: Subtask[] = [];
+  raw.forEach((entry, index) => {
+    if (!isRecord(entry)) return;
+    const title = asString(entry.title).trim();
+    if (!title) return;
+    subtasks.push({
+      id: asString(entry.id) || `sub-${index}`,
+      title,
+      done: entry.done === true,
+    });
+  });
+  return subtasks;
+}
+
 function normalizeQuest(raw: unknown): Quest | null {
   if (!isRecord(raw)) return null;
   const id = asString(raw.id);
@@ -123,6 +147,7 @@ function normalizeQuest(raw: unknown): Quest | null {
     completed: raw.completed === true,
     completedAt: typeof raw.completedAt === 'string' ? raw.completedAt : undefined,
     templateId: typeof raw.templateId === 'string' ? raw.templateId : undefined,
+    subtasks: normalizeSubtasks(raw.subtasks),
   };
 }
 

@@ -9,15 +9,20 @@ import { dateKey } from '../utils/dates';
 interface QuestCardProps {
   quest: Quest;
   onToggle: (id: string) => void;
+  /** Marca/desmarca um passo da missão épica. */
+  onToggleSubtask?: (questId: string, subtaskId: string) => void;
   onPress?: (quest: Quest) => void;
   onDelete?: (quest: Quest) => void;
 }
 
 /** Cartão de missão com botão de conclusão, categoria, dificuldade e ações. */
-export function QuestCard({ quest, onToggle, onPress, onDelete }: QuestCardProps) {
+export function QuestCard({ quest, onToggle, onToggleSubtask, onPress, onDelete }: QuestCardProps) {
   const category = CATEGORIES[quest.category];
   const difficulty = DIFFICULTIES[quest.difficulty];
   const overdue = !quest.completed && quest.date !== dateKey();
+  const totalSubtasks = quest.subtasks.length;
+  const doneSubtasks = quest.subtasks.filter((subtask) => subtask.done).length;
+  const hasSubtasks = totalSubtasks > 0;
 
   return (
     <Pressable
@@ -30,7 +35,15 @@ export function QuestCard({ quest, onToggle, onPress, onDelete }: QuestCardProps
         hitSlop={8}
         accessibilityRole="checkbox"
         accessibilityState={{ checked: quest.completed }}
-        accessibilityLabel={quest.completed ? `Reabrir missão ${quest.title}` : `Concluir missão ${quest.title}`}
+        accessibilityLabel={
+          hasSubtasks
+            ? quest.completed
+              ? `Desmarcar todos os passos de ${quest.title}`
+              : `Concluir todos os passos de ${quest.title}`
+            : quest.completed
+              ? `Reabrir missão ${quest.title}`
+              : `Concluir missão ${quest.title}`
+        }
         style={styles.checkWrap}
       >
         {quest.completed ? (
@@ -68,6 +81,14 @@ export function QuestCard({ quest, onToggle, onPress, onDelete }: QuestCardProps
             <MaterialCommunityIcons name={difficulty.icon} size={12} color={difficulty.color} />
             <Text style={[styles.pillText, { color: difficulty.color }]}>{difficulty.label}</Text>
           </View>
+          {hasSubtasks && (
+            <View style={[styles.pill, { backgroundColor: `${colors.accent}1F` }]}>
+              <MaterialCommunityIcons name="format-list-checks" size={12} color={colors.accent} />
+              <Text style={[styles.pillText, { color: colors.accent }]}>
+                {doneSubtasks}/{totalSubtasks} passos
+              </Text>
+            </View>
+          )}
           {overdue && (
             <View style={[styles.pill, { backgroundColor: `${colors.danger}1F` }]}>
               <MaterialCommunityIcons name="calendar-clock-outline" size={12} color={colors.danger} />
@@ -75,6 +96,38 @@ export function QuestCard({ quest, onToggle, onPress, onDelete }: QuestCardProps
             </View>
           )}
         </View>
+
+        {/* Passos da missão épica: concluir todos fecha a missão. */}
+        {hasSubtasks && (
+          <View style={styles.subtaskList}>
+            {quest.subtasks.map((subtask) => (
+              <Pressable
+                key={subtask.id}
+                onPress={
+                  onToggleSubtask ? () => onToggleSubtask(quest.id, subtask.id) : undefined
+                }
+                disabled={!onToggleSubtask}
+                hitSlop={6}
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: subtask.done }}
+                accessibilityLabel={`Passo ${subtask.title}`}
+                style={styles.subtaskRow}
+              >
+                <MaterialCommunityIcons
+                  name={subtask.done ? 'checkbox-marked-circle' : 'checkbox-blank-circle-outline'}
+                  size={16}
+                  color={subtask.done ? colors.success : colors.textMuted}
+                />
+                <Text
+                  style={[styles.subtaskText, subtask.done && styles.subtaskTextDone]}
+                  numberOfLines={1}
+                >
+                  {subtask.title}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        )}
       </View>
 
       {/* XP e ações */}
@@ -169,6 +222,25 @@ const styles = StyleSheet.create({
   pillText: {
     fontSize: 11,
     fontWeight: '700',
+  },
+  subtaskList: {
+    gap: 6,
+    marginTop: 2,
+  },
+  subtaskRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  subtaskText: {
+    flex: 1,
+    color: colors.text,
+    fontSize: 12.5,
+    fontWeight: '600',
+  },
+  subtaskTextDone: {
+    color: colors.textMuted,
+    textDecorationLine: 'line-through',
   },
   right: {
     alignItems: 'flex-end',

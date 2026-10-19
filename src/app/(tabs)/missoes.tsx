@@ -41,7 +41,7 @@ const EMPTY_MESSAGES: Record<Filter, { title: string; message: string }> = {
 };
 
 export default function MissionsScreen() {
-  const { state, todayQuests, toggleQuest, deleteQuest, addQuest } = useGame();
+  const { state, todayQuests, toggleQuest, toggleSubtask, deleteQuest, addQuest } = useGame();
   const confirm = useConfirm();
   const [filter, setFilter] = useState<Filter>('hoje');
 
@@ -104,6 +104,7 @@ export default function MissionsScreen() {
           <QuestCard
             quest={item}
             onToggle={toggleQuest}
+            onToggleSubtask={toggleSubtask}
             onPress={(q) => router.push({ pathname: '/nova-missao', params: { id: q.id } })}
             onDelete={(q) => confirmDelete(q.title, q.id)}
           />
