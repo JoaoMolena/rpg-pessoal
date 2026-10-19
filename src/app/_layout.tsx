@@ -61,6 +61,10 @@ function AppShell() {
           name="lembretes"
           options={{ presentation: 'modal', title: 'Lembretes' }}
         />
+        <Stack.Screen
+          name="backup"
+          options={{ presentation: 'modal', title: 'Backup dos dados' }}
+        />
       </Stack>
       <CompletionFeedback />
       <LevelUpOverlay />

@@ -103,6 +103,13 @@ export default function EditProfileScreen() {
           onPress={() => router.push('/lembretes')}
         />
 
+        <PrimaryButton
+          label="Backup dos dados"
+          icon="database-export-outline"
+          variant="ghost"
+          onPress={() => router.push('/backup')}
+        />
+
         <View style={styles.divider} />
 
         <PrimaryButton label="Zerar progresso" icon="restart" variant="danger" onPress={handleReset} />

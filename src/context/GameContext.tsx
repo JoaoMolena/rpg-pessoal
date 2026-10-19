@@ -69,6 +69,8 @@ export interface GameContextValue {
   setNotifications: (settings: NotificationSettings) => void;
   setPlayer: (name: string, avatar: string) => void;
   resetProgress: () => void;
+  /** Substitui todo o progresso por um estado importado (backup já validado). */
+  importState: (next: AppState) => void;
   dismissLevelUp: () => void;
   /** Fecha o feedback de conclusão (sem desfazer nada). */
   dismissCompletion: () => void;
@@ -197,6 +199,14 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     dispatch({ type: 'RESET', state: createInitialState() });
   }, []);
 
+  const importState = useCallback((next: AppState) => {
+    setLevelUp(null);
+    setCompletion(null);
+    // O marco de XP acompanha o backup para não celebrar um level up fantasma.
+    maxXpRef.current = next.maxTotalXp;
+    dispatch({ type: 'RESET', state: next });
+  }, []);
+
   const dismissLevelUp = useCallback(() => setLevelUp(null), []);
 
   const value = useMemo<GameContextValue>(() => {
@@ -229,6 +239,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       setNotifications,
       setPlayer,
       resetProgress,
+      importState,
       dismissLevelUp,
       dismissCompletion,
       undoCompletion,
@@ -250,6 +261,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     setNotifications,
     setPlayer,
     resetProgress,
+    importState,
     dismissLevelUp,
     dismissCompletion,
     undoCompletion,

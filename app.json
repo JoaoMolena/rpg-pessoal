@@ -31,7 +31,8 @@
       "expo-status-bar",
       "expo-router",
       "expo-font",
-      "expo-notifications"
+      "expo-notifications",
+      "expo-sharing"
     ],
     "extra": {
       "router": {

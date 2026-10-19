@@ -15,6 +15,7 @@ Transforme suas tarefas diárias em missões, ganhe XP, soba de nível e mantenh
 - **Missões atrasadas**: missões não concluídas no dia anterior aparecem destacadas para você não esquecê-las.
 - **Celebração de Level Up**: overlay animado quando você sobe de nível.
 - **Feedback de conclusão**: vibração, "+XP" animado e toast com **"Desfazer"** para desmarcar na hora. Respeita "reduzir movimento" do sistema (sem deslocamentos).
+- **Backup dos dados**: exporte todo o progresso num arquivo `.json` (para guardar ou trocar de aparelho) e importe de volta. A importação valida o arquivo, migra backups antigos e confirma antes de substituir o progresso atual.
 - **Perfil personalizável**: nome e avatar do herói.
 - **Persistência local**: todo o progresso é salvo com `AsyncStorage` e sobrevive ao fechamento do app.
 - **Dados versionados**: o estado salvo tem `schemaVersion` e passa por migração/validação na leitura (v1 → v2 → v3 → v4), sem perder XP.
@@ -32,14 +33,14 @@ npx expo start
 
 Escaneie o QR code com o app **Expo Go** (Android/iOS), ou pressione `a` (Android) / `i` (iOS) com um emulador aberto.
 
-> Observação: o app usa apenas módulos compatíveis com o Expo Go (`expo-router`, `AsyncStorage`, `LinearGradient`, ícones, `expo-notifications` local, `expo-haptics`), então não é necessário build de desenvolvimento. Só o *push* remoto do `expo-notifications` exigiria um build de desenvolvimento — o app não usa push.
+> Observação: o app usa apenas módulos compatíveis com o Expo Go (`expo-router`, `AsyncStorage`, `LinearGradient`, ícones, `expo-notifications` local, `expo-haptics`, `expo-file-system`, `expo-sharing`, `expo-document-picker`), então não é necessário build de desenvolvimento. Só o *push* remoto do `expo-notifications` exigiria um build de desenvolvimento — o app não usa push.
 
 ## 📁 Estrutura do projeto
 
 ```
 src/
 ├── app/                    # Rotas (Expo Router — file-based routing)
-│   ├── _layout.tsx         # Layout raiz (hidratação + providers + overlay de level up)
+│   ├── _layout.tsx         # Layout raiz (hidratação + providers + feedback de conclusão + level up)
 │   ├── (tabs)/
 │   │   ├── _layout.tsx     # Navegação por abas
 │   │   ├── index.tsx       # Início (painel do herói + missões de hoje)
@@ -49,7 +50,11 @@ src/
 │   ├── recorrentes.tsx     # Modal de missões recorrentes (listar/pausar/excluir)
 │   ├── nova-recorrente.tsx # Modal de criação/edição de missão recorrente
 │   ├── lembretes.tsx       # Modal de notificações (lembrete diário + sequência)
+│   ├── backup.tsx          # Modal de backup (exportar/importar JSON)
 │   └── editar-perfil.tsx   # Modal de perfil (nome, avatar, reset)
+├── backup/                 # Backup em JSON
+│   ├── format.ts           # Serialização + validação/migração do arquivo (puro)
+│   └── backup.ts           # Gravar/compartilhar e escolher/ler o arquivo (nativo)
 ├── components/             # Componentes reutilizáveis (ConfirmDialog, TemplateCard, TimeField, CompletionFeedback...)
 ├── context/GameContext.tsx # Estado global + persistência + hidratação + geração diária + feedback
 ├── domain/                 # Regras puras (reducer + estatísticas derivadas)
@@ -113,4 +118,4 @@ A curva quadrática faz o progresso ficar mais desafiador conforme você evolui.
 - React Native 0.88 + React 19
 - TypeScript (modo estrito)
 - `@react-native-async-storage/async-storage` (persistência)
-- `expo-linear-gradient` (gradientes) · `@expo/vector-icons` (ícones Material Community) · `expo-notifications` (notificações locais) · `expo-haptics` (vibração)
+- `expo-linear-gradient` (gradientes) · `@expo/vector-icons` (ícones Material Community) · `expo-notifications` (notificações locais) · `expo-haptics` (vibração) · `expo-file-system` + `expo-sharing` + `expo-document-picker` (backup em arquivo)
