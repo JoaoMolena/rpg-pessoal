@@ -5,6 +5,7 @@ import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { ConfirmProvider } from '../components/ConfirmDialog';
 import { LevelUpOverlay } from '../components/LevelUpOverlay';
 import { GameProvider, useGame } from '../context/GameContext';
+import { useNotificationSync } from '../notifications/useNotificationSync';
 import { colors } from '../theme/game';
 
 /**
@@ -22,6 +23,7 @@ function HydrationSplash() {
 
 function AppShell() {
   const { hydrated } = useGame();
+  useNotificationSync();
 
   if (!hydrated) return <HydrationSplash />;
 
@@ -53,6 +55,10 @@ function AppShell() {
         <Stack.Screen
           name="nova-recorrente"
           options={{ presentation: 'modal', title: 'Nova recorrente' }}
+        />
+        <Stack.Screen
+          name="lembretes"
+          options={{ presentation: 'modal', title: 'Lembretes' }}
         />
       </Stack>
       <LevelUpOverlay />

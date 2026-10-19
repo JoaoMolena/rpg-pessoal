@@ -14,7 +14,15 @@ import { buildTemplate, planGeneration } from '../domain/recurrence';
 import { deriveStats } from '../domain/stats';
 import { useToday } from '../hooks/useToday';
 import { clearState, loadState, saveState } from '../storage/storage';
-import type { AppState, GameStats, Quest, QuestInput, QuestTemplate, QuestTemplateInput } from '../types';
+import type {
+  AppState,
+  GameStats,
+  NotificationSettings,
+  Quest,
+  QuestInput,
+  QuestTemplate,
+  QuestTemplateInput,
+} from '../types';
 import { dateKey } from '../utils/dates';
 import { createId } from '../utils/id';
 import { didLevelUp, getLevelInfo, type LevelInfo } from '../utils/level';
@@ -39,6 +47,8 @@ export interface GameContextValue {
   pendingCount: number;
   /** Modelos de missões recorrentes. */
   templates: QuestTemplate[];
+  /** Preferências de notificações locais. */
+  notifications: NotificationSettings;
   addQuest: (input: QuestInput) => void;
   updateQuest: (id: string, input: QuestInput) => void;
   toggleQuest: (id: string) => void;
@@ -47,6 +57,7 @@ export interface GameContextValue {
   updateTemplate: (id: string, input: QuestTemplateInput) => void;
   setTemplateActive: (id: string, active: boolean) => void;
   deleteTemplate: (id: string) => void;
+  setNotifications: (settings: NotificationSettings) => void;
   setPlayer: (name: string, avatar: string) => void;
   resetProgress: () => void;
   dismissLevelUp: () => void;
@@ -146,6 +157,10 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     dispatch({ type: 'DELETE_TEMPLATE', id });
   }, []);
 
+  const setNotifications = useCallback((settings: NotificationSettings) => {
+    dispatch({ type: 'SET_NOTIFICATIONS', settings });
+  }, []);
+
   const setPlayer = useCallback((name: string, avatar: string) => {
     dispatch({ type: 'SET_PLAYER', name, avatar });
   }, []);
@@ -176,6 +191,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       overdueQuests,
       pendingCount,
       templates: state.templates,
+      notifications: state.notifications,
       addQuest,
       updateQuest,
       toggleQuest,
@@ -184,6 +200,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       updateTemplate,
       setTemplateActive,
       deleteTemplate,
+      setNotifications,
       setPlayer,
       resetProgress,
       dismissLevelUp,
@@ -201,6 +218,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     updateTemplate,
     setTemplateActive,
     deleteTemplate,
+    setNotifications,
     setPlayer,
     resetProgress,
     dismissLevelUp,

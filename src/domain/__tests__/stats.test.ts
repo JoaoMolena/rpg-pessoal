@@ -1,4 +1,4 @@
-import type { AppState, Completion, Quest } from '../../types';
+import { DEFAULT_NOTIFICATION_SETTINGS, type AppState, type Completion, type Quest } from '../../types';
 import {
   currentStreakFrom,
   deriveStats,
@@ -36,6 +36,7 @@ function stateWith(completions: Completion[]): AppState {
     completions,
     maxTotalXp: totalXpFrom(completions),
     templates: [],
+    notifications: DEFAULT_NOTIFICATION_SETTINGS,
   };
 }
 

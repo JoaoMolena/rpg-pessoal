@@ -1,5 +1,5 @@
 import { deriveStats, totalXpFrom } from '../../domain/stats';
-import { SCHEMA_VERSION } from '../../types';
+import { DEFAULT_NOTIFICATION_SETTINGS, SCHEMA_VERSION } from '../../types';
 import { migrateState } from '../migrations';
 
 const V1_STATE = {
@@ -68,7 +68,7 @@ describe('bug #10 - migração e validação do estado salvo', () => {
     expect(deriveStats(migrated!).totalXp).toBe(0);
   });
 
-  it('migra um estado v2 (sem templates) para a v3 sem perder XP', () => {
+  it('migra um estado v2 (sem templates nem notificações) para a versão atual sem perder XP', () => {
     const v2 = {
       schemaVersion: 2,
       playerName: 'Bruno',
@@ -92,11 +92,12 @@ describe('bug #10 - migração e validação do estado salvo', () => {
     const migrated = migrateState(v2)!;
     expect(migrated.schemaVersion).toBe(SCHEMA_VERSION);
     expect(migrated.templates).toEqual([]);
+    expect(migrated.notifications).toEqual(DEFAULT_NOTIFICATION_SETTINGS);
     expect(totalXpFrom(migrated.completions)).toBe(25);
     expect(deriveStats(migrated, '2026-06-01').totalXp).toBe(25);
   });
 
-  it('preserva um estado já na versão atual (com recorrências)', () => {
+  it('preserva um estado já na versão atual (recorrências + notificações)', () => {
     const current = {
       schemaVersion: SCHEMA_VERSION,
       playerName: 'Bruno',
@@ -127,6 +128,12 @@ describe('bug #10 - migração e validação do estado salvo', () => {
           lastGeneratedDate: '2026-06-01',
         },
       ],
+      notifications: {
+        dailyEnabled: true,
+        dailyTime: '07:30',
+        streakEnabled: true,
+        streakTime: '22:00',
+      },
     };
 
     expect(migrateState(current)).toEqual(current);
@@ -148,6 +155,31 @@ describe('bug #10 - migração e validação do estado salvo', () => {
     expect(migrated.templates[0].recurrence).toEqual({ kind: 'weekdays', days: [3] });
     expect(migrated.templates[0].active).toBe(true);
     expect(migrated.templates[0].difficulty).toBe('media'); // padrão
+  });
+
+  it('normaliza notificações inválidas para o padrão (desligadas)', () => {
+    const migrated = migrateState({
+      schemaVersion: SCHEMA_VERSION,
+      quests: [],
+      notifications: { dailyEnabled: 'sim', dailyTime: '99:99', streakTime: 'nope' },
+    })!;
+
+    expect(migrated.notifications).toEqual(DEFAULT_NOTIFICATION_SETTINGS);
+  });
+
+  it('aceita horários válidos das notificações', () => {
+    const migrated = migrateState({
+      schemaVersion: SCHEMA_VERSION,
+      quests: [],
+      notifications: { dailyEnabled: true, dailyTime: '6:05', streakEnabled: true, streakTime: '23:45' },
+    })!;
+
+    expect(migrated.notifications).toEqual({
+      dailyEnabled: true,
+      dailyTime: '6:05',
+      streakEnabled: true,
+      streakTime: '23:45',
+    });
   });
 
   it('retorna null para dados irrecuperáveis', () => {

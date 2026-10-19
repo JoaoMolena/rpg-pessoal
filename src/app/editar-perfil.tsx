@@ -96,6 +96,13 @@ export default function EditProfileScreen() {
 
         <PrimaryButton label="Salvar" icon="content-save-outline" onPress={handleSave} />
 
+        <PrimaryButton
+          label="Lembretes e avisos"
+          icon="bell-outline"
+          variant="ghost"
+          onPress={() => router.push('/lembretes')}
+        />
+
         <View style={styles.divider} />
 
         <PrimaryButton label="Zerar progresso" icon="restart" variant="danger" onPress={handleReset} />

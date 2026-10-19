@@ -10,7 +10,7 @@ export type QuestCategory =
 export type QuestDifficulty = 'facil' | 'media' | 'dificil' | 'epica';
 
 /** Versão atual do formato de dados persistido. */
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 4;
 
 /** Dia da semana: 0 = domingo ... 6 = sábado (mesma convenção de `Date.getDay()`). */
 export type Weekday = 0 | 1 | 2 | 3 | 4 | 5 | 6;
@@ -72,6 +72,30 @@ export interface QuestTemplate {
   lastGeneratedDate?: string;
 }
 
+/**
+ * Preferências de notificações locais.
+ *
+ * Horários no formato `HH:MM` (24h). As duas opções começam **desligadas** para
+ * que a permissão do sistema só seja pedida quando o usuário ativar algo.
+ */
+export interface NotificationSettings {
+  /** Lembrete diário de missões. */
+  dailyEnabled: boolean;
+  /** Horário do lembrete diário (HH:MM). */
+  dailyTime: string;
+  /** Aviso no fim do dia quando a sequência está em risco. */
+  streakEnabled: boolean;
+  /** Horário do aviso de sequência (HH:MM). */
+  streakTime: string;
+}
+
+export const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
+  dailyEnabled: false,
+  dailyTime: '20:00',
+  streakEnabled: false,
+  streakTime: '21:30',
+};
+
 export interface AppState {
   schemaVersion: number;
   playerName: string;
@@ -87,6 +111,8 @@ export interface AppState {
   maxTotalXp: number;
   /** Modelos de missões recorrentes. */
   templates: QuestTemplate[];
+  /** Preferências de notificações locais. */
+  notifications: NotificationSettings;
 }
 
 /**

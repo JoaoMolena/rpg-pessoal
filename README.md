@@ -7,6 +7,7 @@ Transforme suas tarefas diárias em missões, ganhe XP, soba de nível e mantenh
 
 - **Missões diárias**: crie, edite, conclua e exclua missões com categoria (Saúde, Estudo, Trabalho, Finanças, Lazer, Social, Outros) e dificuldade (Fácil, Média, Difícil, Épica).
 - **Missões recorrentes**: crie modelos que geram a missão do dia automaticamente — diária, em dias escolhidos da semana ou semanal. A geração é idempotente (abrir o app duas vezes no mesmo dia não duplica) e não retroage: dias não abertos não criam missões. Dá para pausar sem apagar o histórico.
+- **Notificações locais**: lembrete diário e aviso de "sequência em risco" no fim do dia, cada um com horário configurável. Roda no próprio aparelho, sem internet; a permissão é pedida só quando você ativa uma opção.
 - **Sistema de XP e níveis**: cada missão concluída concede XP conforme a dificuldade; o nível é calculado a partir do XP acumulado, com curva de dificuldade crescente.
 - **Títulos (ranks)**: Recruta → Aprendiz → Aventureiro → Herói → Veterano → Elite → Mestre → Lenda → Mítico.
 - **Sequência (streak)**: acompanhe os dias consecutivos com pelo menos uma missão concluída. O streak volta a zero ao passar um dia inteiro sem concluir nada (não há bônus de XP por constância).
@@ -15,7 +16,7 @@ Transforme suas tarefas diárias em missões, ganhe XP, soba de nível e mantenh
 - **Celebração de Level Up**: overlay animado quando você sobe de nível.
 - **Perfil personalizável**: nome e avatar do herói.
 - **Persistência local**: todo o progresso é salvo com `AsyncStorage` e sobrevive ao fechamento do app.
-- **Dados versionados**: o estado salvo tem `schemaVersion` e passa por migração/validação na leitura (v1 → v2 → v3), sem perder XP.
+- **Dados versionados**: o estado salvo tem `schemaVersion` e passa por migração/validação na leitura (v1 → v2 → v3 → v4), sem perder XP.
 - **Modo escuro moderno**: paleta escura com gradientes roxo/ciano, cartões arredondados e sombras suaves.
 
 ## 🚀 Como executar
@@ -46,22 +47,28 @@ src/
 │   ├── nova-missao.tsx     # Modal de criação/edição de missão
 │   ├── recorrentes.tsx     # Modal de missões recorrentes (listar/pausar/excluir)
 │   ├── nova-recorrente.tsx # Modal de criação/edição de missão recorrente
+│   ├── lembretes.tsx       # Modal de notificações (lembrete diário + sequência)
 │   └── editar-perfil.tsx   # Modal de perfil (nome, avatar, reset)
-├── components/             # Componentes reutilizáveis (ConfirmDialog, TemplateCard...)
+├── components/             # Componentes reutilizáveis (ConfirmDialog, TemplateCard, TimeField...)
 ├── context/GameContext.tsx # Estado global + persistência + hidratação + geração diária
 ├── domain/                 # Regras puras (reducer + estatísticas derivadas)
 │   ├── reducer.ts          # Reducer puro (ações entram com id/data prontos)
 │   ├── recurrence.ts       # Recorrência pura (casamento por dia + plano de geração)
 │   └── stats.ts            # XP, streak e nível derivados do log de conclusões
 ├── hooks/useToday.ts       # "Hoje" reativo (AppState + virada do dia)
+├── notifications/          # Notificações locais (expo-notifications)
+│   ├── plan.ts             # Plano de agendamento puro (o que cancelar/agendar)
+│   ├── notifications.ts    # Executa o plano (permissão, canal Android, agendamentos)
+│   └── useNotificationSync.ts # Sincroniza os lembretes com o estado
 ├── storage/
 │   ├── storage.ts          # Leitura/escrita no AsyncStorage
-│   └── migrations.ts       # Validação + migração de schema (v1 → v2 → v3)
+│   └── migrations.ts       # Validação + migração de schema (v1 → v2 → v3 → v4)
 ├── theme/game.ts           # Cores, gradientes, categorias, dificuldades, conquistas
 ├── types/index.ts          # Tipos do domínio
 └── utils/
     ├── level.ts            # Fórmulas de nível e ranks
     ├── dates.ts            # Utilitários de data (dias, streak, saudações)
+    ├── time.ts             # Horários "HH:MM" (parse/format)
     ├── format.ts           # Formatação (plural de missões)
     └── id.ts               # Gerador de IDs
 ```
@@ -102,4 +109,4 @@ A curva quadrática faz o progresso ficar mais desafiador conforme você evolui.
 - React Native 0.88 + React 19
 - TypeScript (modo estrito)
 - `@react-native-async-storage/async-storage` (persistência)
-- `expo-linear-gradient` (gradientes) · `@expo/vector-icons` (ícones Material Community)
+- `expo-linear-gradient` (gradientes) · `@expo/vector-icons` (ícones Material Community) · `expo-notifications` (notificações locais)

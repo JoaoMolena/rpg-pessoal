@@ -1,9 +1,11 @@
 import { totalXpFrom } from '../domain/stats';
 import { CATEGORY_KEYS, DIFFICULTIES, DIFFICULTY_KEYS } from '../theme/game';
 import {
+  DEFAULT_NOTIFICATION_SETTINGS,
   SCHEMA_VERSION,
   type AppState,
   type Completion,
+  type NotificationSettings,
   type Quest,
   type QuestCategory,
   type QuestDifficulty,
@@ -12,14 +14,15 @@ import {
   type Weekday,
 } from '../types';
 import { dateKey } from '../utils/dates';
+import { parseTime } from '../utils/time';
 
 /**
  * Migração e validação do estado persistido.
  *
  * Toda leitura passa por aqui, de forma que o app nunca recebe um objeto mal
  * formado: campos ausentes ganham valores padrão e estados de versões antigas
- * são migrados (v1 → v2 → v3) reconstruindo o log de conclusões e adicionando os
- * campos novos — sem perder XP.
+ * são migrados (v1 → v2 → v3 → v4) reconstruindo o log de conclusões e
+ * adicionando os campos novos — sem perder XP.
  */
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -58,6 +61,21 @@ function normalizeRecurrence(raw: unknown): Recurrence {
     }
   }
   return { kind: 'daily' };
+}
+
+/** Normaliza as preferências de notificação (padrão: tudo desligado). */
+function normalizeNotifications(raw: unknown): NotificationSettings {
+  const source = isRecord(raw) ? raw : {};
+
+  const dailyTime = asString(source.dailyTime, DEFAULT_NOTIFICATION_SETTINGS.dailyTime);
+  const streakTime = asString(source.streakTime, DEFAULT_NOTIFICATION_SETTINGS.streakTime);
+
+  return {
+    dailyEnabled: source.dailyEnabled === true,
+    dailyTime: parseTime(dailyTime) ? dailyTime : DEFAULT_NOTIFICATION_SETTINGS.dailyTime,
+    streakEnabled: source.streakEnabled === true,
+    streakTime: parseTime(streakTime) ? streakTime : DEFAULT_NOTIFICATION_SETTINGS.streakTime,
+  };
 }
 
 function normalizeTemplate(raw: unknown): QuestTemplate | null {
@@ -153,8 +171,9 @@ function migrateV1toV2(raw: Record<string, unknown>): AppState {
     quests,
     completions,
     maxTotalXp: Math.max(legacyTotalXp, totalXpFrom(completions)),
-    // Recorrências só existem a partir da v3.
+    // Recorrências e notificações só existem a partir de versões posteriores.
     templates: [],
+    notifications: { ...DEFAULT_NOTIFICATION_SETTINGS },
   };
 }
 
@@ -183,6 +202,7 @@ function normalizeCurrent(raw: Record<string, unknown>): AppState {
     completions,
     maxTotalXp: Math.max(asNumber(raw.maxTotalXp, 0), totalXpFrom(completions)),
     templates,
+    notifications: normalizeNotifications(raw.notifications),
   };
 }
 

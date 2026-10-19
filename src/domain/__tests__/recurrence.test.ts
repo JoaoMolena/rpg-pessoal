@@ -1,4 +1,4 @@
-import { SCHEMA_VERSION, type AppState, type Quest, type QuestTemplate } from '../../types';
+import { SCHEMA_VERSION, DEFAULT_NOTIFICATION_SETTINGS, type AppState, type Quest, type QuestTemplate } from '../../types';
 import { reducer } from '../reducer';
 import {
   buildTemplate,
@@ -114,6 +114,7 @@ describe('planGeneration (geração idempotente, sem retroagir)', () => {
       completions: [],
       maxTotalXp: 0,
       templates,
+      notifications: DEFAULT_NOTIFICATION_SETTINGS,
     };
 
     const applied = reducer(state, { type: 'GENERATE_QUESTS', quests: first, date: MONDAY });

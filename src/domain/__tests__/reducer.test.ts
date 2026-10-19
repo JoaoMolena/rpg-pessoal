@@ -1,4 +1,5 @@
 import {
+  DEFAULT_NOTIFICATION_SETTINGS,
   SCHEMA_VERSION,
   type AppState,
   type Completion,
@@ -32,6 +33,7 @@ function makeState(quests: Quest[], completions: Completion[] = []): AppState {
     completions,
     maxTotalXp: 0,
     templates: [],
+    notifications: DEFAULT_NOTIFICATION_SETTINGS,
   };
 }
 

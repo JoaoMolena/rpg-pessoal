@@ -30,7 +30,8 @@
     "plugins": [
       "expo-status-bar",
       "expo-router",
-      "expo-font"
+      "expo-font",
+      "expo-notifications"
     ],
     "extra": {
       "router": {

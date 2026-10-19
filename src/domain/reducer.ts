@@ -1,8 +1,10 @@
 import { DIFFICULTIES } from '../theme/game';
 import {
+  DEFAULT_NOTIFICATION_SETTINGS,
   SCHEMA_VERSION,
   type AppState,
   type Completion,
+  type NotificationSettings,
   type Quest,
   type QuestInput,
   type QuestTemplate,
@@ -31,6 +33,7 @@ export type Action =
   | { type: 'SET_TEMPLATE_ACTIVE'; id: string; active: boolean }
   | { type: 'DELETE_TEMPLATE'; id: string }
   | { type: 'GENERATE_QUESTS'; quests: Quest[]; date: string }
+  | { type: 'SET_NOTIFICATIONS'; settings: NotificationSettings }
   | { type: 'RESET'; state: AppState };
 
 /** Monta uma missão a partir do formulário. `id` e `date` vêm de fora. */
@@ -79,6 +82,7 @@ export function createInitialState(now: Date = new Date()): AppState {
     completions: [],
     maxTotalXp: 0,
     templates: [],
+    notifications: DEFAULT_NOTIFICATION_SETTINGS,
   };
 }
 
@@ -200,6 +204,9 @@ export function reducer(state: AppState, action: Action): AppState {
         playerName: action.name.trim() || state.playerName,
         playerAvatar: action.avatar,
       };
+
+    case 'SET_NOTIFICATIONS':
+      return { ...state, notifications: action.settings };
 
     case 'RESET':
       return action.state;
