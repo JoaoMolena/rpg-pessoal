@@ -64,7 +64,7 @@ Entregue em **PRs separados**, um por item, com `tsc`, lint, testes e CI verdes.
 |---|------|--------|
 | a | Atributos por categoria com nível próprio | ✅ |
 | b | Ouro e loja de recompensas personalizadas | ✅ |
-| c | Escudo de streak e bônus de XP por sequência | ⏳ |
+| c | Escudo de streak e bônus de XP por sequência | ✅ |
 | d | Missões épicas com subtarefas | ⏳ |
 | e | Novas conquistas com data e toast | ⏳ |
 
@@ -84,5 +84,16 @@ Entregue em **PRs separados**, um por item, com `tsc`, lint, testes e CI verdes.
 - **Invariante**: o saldo é derivado do log + dos resgates (nunca persistido) e o resgate sem saldo é bloqueado **no reducer** (não só na UI).
 - **Migração v5 → v6**: backfill de `gold` a partir do `xp` (`round(xp/5)`); `rewards`/`purchases` ausentes viram `[]`; entradas inválidas (título vazio, preço ≤ 0, resgate sem data) são descartadas na validação. Backups antigos migram no import.
 - **UI**: modal `loja` (saldo, recompensas ordenadas por preço e histórico de resgates) e modal `nova-recompensa`; atalhos na pílula de ouro do cartão do herói e em Editar perfil. O feedback de conclusão passou a mostrar o ouro ganho.
+
+### (c) Escudo de streak e bônus de XP por sequência — decisões
+
+- **Modelo**: `Completion` ganha `bonusXp` (detalhamento **congelado** do bônus de sequência) e `Purchase` ganha `kind: 'reward' | 'shield'`. Nada mais é persistido: os escudos e os dias protegidos são **derivados** do histórico. `schemaVersion` 6 → 7.
+- **Bônus de XP**: `bonusXp = round(xpReward × pct / 100)`, com `pct` por degraus de sequência — 1–2 dias 0% · 3–6 **+10%** · 7–13 **+20%** · 14–29 **+30%** · 30+ **+50%**. Vale a sequência que o jogador passa a ter ao concluir hoje (todos os resgates do dia usam o mesmo percentual) e `xp = xpReward + bonusXp`.
+- **O bônus é XP, não ouro**: conta para nível e atributos, mas o ouro continua `round(xpReward / 5)`. Isso preserva exatamente o balanceamento do item (b) (35/dia). Se o bônus virasse ouro, seriam 1.301 / 4.457 (+24% / +41%).
+- **Balanceamento do bônus** (175 XP/dia, concluindo todo dia): 175 → 193 (+10%) → 210 (+20%) → 228 (+30%) → **263 XP/dia** (+50%). Acumulado: **5.250 → 6.503 XP em 30 dias** (nível 11 → **12**) e **15.750 → 22.283 XP em 90 dias** (nível 18 → **22**) — o bônus responde por 19% e 29% do XP.
+- **Escudo de sequência**: comprado com ouro na loja por **100** (≈ 2,9 dias de ganho, a mesma âncora "média" do item b), no máximo **3** em reserva. Cobre **um dia passado sem conclusão**, mantendo a sequência viva. Sequência passa a ser `dias com conclusão ∪ dias com escudo`.
+- **Consumo determinístico e prospectivo**: `shieldProtectedDays` anda dia a dia da primeira conclusão até **ontem** (hoje nunca é protegido — o dia ainda não acabou); cada dia sem conclusão com sequência viva e escudo já comprado é coberto, um escudo por dia. A compra vale **do dia da compra em diante**, então não dá para comprar depois para consertar um buraco antigo. Nada é gravado: o mesmo histórico e o mesmo `today` devolvem sempre o mesmo resultado.
+- **Migração v6 → v7**: `bonusXp` ausente vira `0` (nada de bônus retroativo) e `kind` ausente vira `'reward'` (nenhum resgate antigo vira escudo). Sem perda de XP ou ouro; backups antigos migram no import.
+- **UI**: a pílula de sequência do cartão do herói ganha os atalhos `+N% de XP` e `N escudos`; a aba Progresso ganha um cartão de **Sequência** (bônus atual, próximo degrau e escudos em reserva/usados); a loja ganha o cartão **Escudo de sequência**; o toast de conclusão mostra o bônus.
 
 > Fases 4+ ainda não definidas.

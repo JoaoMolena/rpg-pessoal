@@ -106,6 +106,26 @@ export default function DashboardScreen() {
               <Text style={styles.xpText}>Faltam {Math.max(0, levelInfo.nextLevelXp - stats.totalXp)} XP</Text>
             </View>
           </View>
+
+          {/* Sequência: bônus de XP em jogo e escudos em reserva. */}
+          {(stats.streakBonusPct > 0 || stats.shieldsAvailable > 0) && (
+            <View style={styles.streakRow}>
+              {stats.streakBonusPct > 0 && (
+                <View style={styles.streakChip}>
+                  <MaterialCommunityIcons name="fire" size={13} color={colors.warning} />
+                  <Text style={styles.streakChipText}>+{stats.streakBonusPct}% de XP</Text>
+                </View>
+              )}
+              {stats.shieldsAvailable > 0 && (
+                <View style={styles.streakChip}>
+                  <MaterialCommunityIcons name="shield-check" size={13} color={colors.accent} />
+                  <Text style={styles.streakChipText}>
+                    {stats.shieldsAvailable} {stats.shieldsAvailable > 1 ? 'escudos' : 'escudo'}
+                  </Text>
+                </View>
+              )}
+            </View>
+          )}
         </LinearGradient>
 
         {/* Estatísticas rápidas */}
@@ -286,6 +306,25 @@ const styles = StyleSheet.create({
   },
   xpText: {
     color: 'rgba(7, 10, 18, 0.8)',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  streakRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  streakChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(7, 10, 18, 0.35)',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
+  },
+  streakChipText: {
+    color: colors.text,
     fontSize: 12,
     fontWeight: '800',
   },

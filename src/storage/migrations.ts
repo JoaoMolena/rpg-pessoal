@@ -24,9 +24,9 @@ import { parseTime } from '../utils/time';
  *
  * Toda leitura passa por aqui, de forma que o app nunca recebe um objeto mal
  * formado: campos ausentes ganham valores padrão e estados de versões antigas
- * são migrados (v1 → v2 → v3 → v4 → v5 → v6) reconstruindo o log de conclusões e
- * adicionando os campos novos (categoria/ouro do log, recorrências,
- * notificações, loja) — sem perder XP nem ouro.
+ * são migrados (v1 → v2 → v3 → v4 → v5 → v6 → v7) reconstruindo o log de
+ * conclusões e adicionando os campos novos (categoria/ouro/bônus do log,
+ * recorrências, notificações, loja) — sem perder XP nem ouro.
  */
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -146,6 +146,8 @@ function normalizeCompletion(
   // Até a v5 o log não guardava ouro: reconstrói pela taxa atual (1 a cada 5 XP).
   // A partir daí o valor fica gravado, então a taxa nunca reprecifica o passado.
   const gold = Math.max(0, Math.round(asNumber(raw.gold, goldFromXp(xp))));
+  // Até a v6 não existia bônus de sequência: todo o XP antigo é XP de missão.
+  const bonusXp = Math.max(0, Math.round(asNumber(raw.bonusXp, 0)));
 
   return {
     id: asString(raw.id, `completion-${questId}-${at}`),
@@ -154,6 +156,7 @@ function normalizeCompletion(
     at,
     category,
     gold,
+    bonusXp,
   };
 }
 
@@ -179,6 +182,8 @@ function normalizePurchase(raw: unknown): Purchase | null {
 
   return {
     id: asString(raw.id, `purchase-${rewardId}-${at}`),
+    // Até a v6 todo resgate era uma recompensa personalizada.
+    kind: raw.kind === 'shield' ? 'shield' : 'reward',
     rewardId,
     title: asString(raw.title).trim() || 'Recompensa',
     cost: Math.round(cost),
@@ -211,6 +216,7 @@ function migrateV1toV2(raw: Record<string, unknown>): AppState {
       at: legacyCompletionDate(quest),
       category: quest.category,
       gold: goldFromXp(quest.xpReward),
+      bonusXp: 0,
     }));
 
   const legacyStats = isRecord(raw.stats) ? raw.stats : {};

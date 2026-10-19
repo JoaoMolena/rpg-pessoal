@@ -1,10 +1,13 @@
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import { router } from 'expo-router';
 
 import { EmptyState } from '../../components/EmptyState';
 import { StatCard } from '../../components/StatCard';
 import { XPBar } from '../../components/XPBar';
 import { useGame } from '../../context/GameContext';
+import { SHIELD_MAX } from '../../domain/shield';
+import { nextStreakTier } from '../../domain/streak';
 import { ACHIEVEMENTS, CATEGORIES, CATEGORY_KEYS, cardShadow, colors } from '../../theme/game';
 import type { Quest, QuestCategory } from '../../types';
 import { formatShortDate } from '../../utils/dates';
@@ -14,6 +17,8 @@ export default function ProgressScreen() {
   const { state, stats, levelInfo } = useGame();
 
   const unlocked = ACHIEVEMENTS.filter((a) => a.check(stats));
+  // Próximo degrau de bônus a partir da sequência que o jogador já tem hoje.
+  const nextTier = nextStreakTier(stats.streakForBonus);
 
   // Histórico derivado do log de conclusões (o XP exibido é o creditado na hora).
   const questById = new Map(state.quests.map((quest) => [quest.id, quest]));
@@ -79,6 +84,60 @@ export default function ProgressScreen() {
           label="Recorde"
           accent={colors.primary}
         />
+      </View>
+
+      {/* Sequência: bônus de XP e escudo */}
+      <Text style={styles.sectionTitle}>Sequência</Text>
+      <View style={styles.streakCard}>
+        <View style={styles.streakTop}>
+          <View style={styles.streakIcon}>
+            <MaterialCommunityIcons name="fire" size={20} color={colors.danger} />
+          </View>
+          <View style={styles.streakBody}>
+            <Text style={styles.streakTitle}>
+              {stats.currentStreak} {stats.currentStreak === 1 ? 'dia' : 'dias'} seguidos
+            </Text>
+            <Text style={styles.streakDesc}>
+              {stats.streakBonusPct > 0
+                ? `Constância rendendo +${stats.streakBonusPct}% de XP em cada missão.`
+                : 'A partir de 3 dias seguidos, cada missão passa a render +10% de XP.'}
+            </Text>
+          </View>
+        </View>
+
+        {nextTier ? (
+          <View style={styles.streakNext}>
+            <MaterialCommunityIcons name="trending-up" size={15} color={colors.accent} />
+            <Text style={styles.streakNextText}>
+              +{nextTier.pct}% de XP ao chegar em {nextTier.minStreak} dias (faltam{' '}
+              {nextTier.minStreak - stats.streakForBonus})
+            </Text>
+          </View>
+        ) : (
+          <View style={styles.streakNext}>
+            <MaterialCommunityIcons name="crown" size={15} color={colors.warning} />
+            <Text style={styles.streakNextText}>Degrau máximo de bônus alcançado.</Text>
+          </View>
+        )}
+
+        <View style={styles.shieldRow}>
+          <MaterialCommunityIcons name="shield-check" size={18} color={colors.accent} />
+          <Text style={styles.shieldText}>
+            {stats.shieldsAvailable} de {SHIELD_MAX} escudos em reserva · {stats.shieldsUsed}{' '}
+            {stats.shieldsUsed === 1 ? 'usado' : 'usados'}
+          </Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Comprar escudo de sequência na loja"
+            onPress={() => router.push('/loja')}
+            style={({ pressed }) => [styles.shieldLink, pressed && styles.pressed]}
+          >
+            <Text style={styles.shieldLinkText}>Loja</Text>
+          </Pressable>
+        </View>
+        <Text style={styles.shieldHint}>
+          Um dia sem conclusão consome um escudo e mantém a sequência viva.
+        </Text>
       </View>
 
       {/* Conquistas */}
@@ -252,6 +311,86 @@ const styles = StyleSheet.create({
   statsGrid: {
     flexDirection: 'row',
     gap: 10,
+  },
+  streakCard: {
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 14,
+    gap: 10,
+  },
+  streakTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  streakIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: `${colors.danger}1A`,
+  },
+  streakBody: {
+    flex: 1,
+    gap: 2,
+  },
+  streakTitle: {
+    color: colors.text,
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  streakDesc: {
+    color: colors.textMuted,
+    fontSize: 12.5,
+    lineHeight: 17,
+  },
+  streakNext: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: `${colors.accent}12`,
+    borderRadius: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+  },
+  streakNextText: {
+    flex: 1,
+    color: colors.accent,
+    fontSize: 12.5,
+    fontWeight: '700',
+  },
+  shieldRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  shieldText: {
+    flex: 1,
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  shieldLink: {
+    backgroundColor: `${colors.primary}22`,
+    borderRadius: 10,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+  },
+  shieldLinkText: {
+    color: colors.primarySoft,
+    fontSize: 12.5,
+    fontWeight: '800',
+  },
+  shieldHint: {
+    color: colors.textMuted,
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  pressed: {
+    opacity: 0.7,
   },
   sectionTitle: {
     color: colors.text,

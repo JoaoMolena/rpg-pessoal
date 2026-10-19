@@ -10,7 +10,7 @@ export type QuestCategory =
 export type QuestDifficulty = 'facil' | 'media' | 'dificil' | 'epica';
 
 /** Versão atual do formato de dados persistido. */
-export const SCHEMA_VERSION = 6;
+export const SCHEMA_VERSION = 7;
 
 /** Dia da semana: 0 = domingo ... 6 = sábado (mesma convenção de `Date.getDay()`). */
 export type Weekday = 0 | 1 | 2 | 3 | 4 | 5 | 6;
@@ -48,7 +48,7 @@ export interface Quest {
 export interface Completion {
   id: string;
   questId: string;
-  /** XP creditado no momento da conclusão. */
+  /** XP total creditado na conclusão: XP da missão **+** bônus de sequência. */
   xp: number;
   /** Data/hora (ISO 8601) da conclusão. */
   at: string;
@@ -60,6 +60,13 @@ export interface Completion {
    * o histórico — a lição do bug #1.
    */
   gold: number;
+  /**
+   * Parte do `xp` vinda do bônus de sequência (congelada).
+   *
+   * É detalhamento, não soma: `xp` já inclui este valor. O bônus **não** vira
+   * ouro — o ouro segue o ritmo da dificuldade (`round(xp - bonusXp) / 5`).
+   */
+  bonusXp: number;
 }
 
 /** Recompensa personalizada criada pelo jogador e vendida na loja. */
@@ -79,6 +86,13 @@ export interface RewardInput {
 }
 
 /**
+ * Tipo de resgate: uma recompensa pessoal ou um escudo de sequência.
+ * Fica gravado para que o ouro gasto e a contagem de escudos sejam derivados
+ * do histórico sem ambiguidade.
+ */
+export type PurchaseKind = 'reward' | 'shield';
+
+/**
  * Registro imutável de um resgate.
  *
  * `title` e `cost` são **snapshots**: editar ou excluir a recompensa depois não
@@ -86,6 +100,8 @@ export interface RewardInput {
  */
 export interface Purchase {
   id: string;
+  /** `'reward'` = recompensa personalizada; `'shield'` = escudo de sequência. */
+  kind: PurchaseKind;
   rewardId: string;
   /** Título da recompensa no momento do resgate. */
   title: string;
@@ -157,7 +173,7 @@ export interface AppState {
   notifications: NotificationSettings;
   /** Recompensas personalizadas à venda na loja. */
   rewards: Reward[];
-  /** Histórico de resgates (fonte de verdade do ouro gasto). */
+  /** Histórico de resgates (fonte de verdade do ouro gasto e dos escudos). */
   purchases: Purchase[];
 }
 
@@ -204,6 +220,19 @@ export interface GameStats {
   goldEarned: number;
   /** Ouro total já gasto em resgates. */
   goldSpent: number;
+  /** Bônus de XP (%) concedido pela sequência atual (0 / 10 / 20 / 30 / 50). */
+  streakBonusPct: number;
+  /** Escudos de sequência comprados na loja. */
+  shieldsOwned: number;
+  /** Escudos já consumidos por dias sem conclusão. */
+  shieldsUsed: number;
+  /** Escudos em reserva (`owned − used`, nunca negativo). */
+  shieldsAvailable: number;
+  /**
+   * Sequência que vale para o bônus agora: a que o jogador teria ao concluir
+   * algo hoje. O bônus em % vem de `streakBonusPct` (`domain/streak`).
+   */
+  streakForBonus: number;
 }
 
 export interface QuestInput {

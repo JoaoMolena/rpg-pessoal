@@ -9,11 +9,19 @@ function completion(gold: number, id = `c-${gold}`): Completion {
     at: '2026-06-01T12:00:00.000Z',
     category: 'saude',
     gold,
+    bonusXp: 0,
   };
 }
 
 function purchase(cost: number, id = `p-${cost}`): Purchase {
-  return { id, rewardId: 'r1', title: 'Recompensa', cost, at: '2026-06-02T12:00:00.000Z' };
+  return {
+    id,
+    kind: 'reward',
+    rewardId: 'r1',
+    title: 'Recompensa',
+    cost,
+    at: '2026-06-02T12:00:00.000Z',
+  };
 }
 
 describe('goldFromXp', () => {

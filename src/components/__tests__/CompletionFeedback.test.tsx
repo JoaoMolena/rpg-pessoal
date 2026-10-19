@@ -3,6 +3,14 @@ import { Pressable, Text } from 'react-native';
 
 import { CompletionFeedback } from '../CompletionFeedback';
 import { GameProvider, useGame } from '../../context/GameContext';
+import { loadState } from '../../storage/storage';
+import {
+  DEFAULT_NOTIFICATION_SETTINGS,
+  SCHEMA_VERSION,
+  type AppState,
+  type Completion,
+} from '../../types';
+import { addDaysToKey, dateKey } from '../../utils/dates';
 
 jest.mock('@expo/vector-icons/MaterialCommunityIcons', () => () => null);
 
@@ -61,6 +69,35 @@ async function setup() {
   return utils;
 }
 
+/** Estado com dois dias seguidos já concluídos (anteontem e ontem). */
+function stateWithStreak(): AppState {
+  const today = dateKey();
+  const days = [addDaysToKey(today, -2), addDaysToKey(today, -1)];
+
+  return {
+    schemaVersion: SCHEMA_VERSION,
+    playerName: 'Herói',
+    playerAvatar: '⚔️',
+    quests: [],
+    completions: days.map(
+      (day, index): Completion => ({
+        id: `c${index}`,
+        questId: `q${index}`,
+        xp: 25,
+        at: `${day}T12:00:00.000Z`,
+        category: 'saude',
+        gold: 5,
+        bonusXp: 0,
+      })
+    ),
+    maxTotalXp: 50,
+    templates: [],
+    notifications: DEFAULT_NOTIFICATION_SETTINGS,
+    rewards: [],
+    purchases: [],
+  };
+}
+
 describe('CompletionFeedback', () => {
   it('mostra "+XP" e o toast com "Desfazer" ao concluir', async () => {
     const { getByTestId, getByText } = await setup();
@@ -94,5 +131,16 @@ describe('CompletionFeedback', () => {
     await fireEvent.press(getByTestId('toggle')); // desmarca a missão
 
     await waitFor(() => expect(queryByText('Desfazer')).toBeNull());
+  });
+
+  it('mostra o bônus de sequência no toast', async () => {
+    (loadState as jest.Mock).mockResolvedValueOnce(stateWithStreak());
+    const { getByTestId, getByText } = await setup();
+
+    await fireEvent.press(getByTestId('toggle'));
+
+    await waitFor(() => expect(getByText('Desfazer')).toBeTruthy());
+    // Anteontem + ontem + hoje = 3 dias → +10% sobre 10 XP = +1 XP.
+    expect(getByText('Missão concluída · +11 XP · bônus de sequência +1 · +2 de ouro')).toBeTruthy();
   });
 });

@@ -123,6 +123,7 @@ describe('bug #10 - migração e validação do estado salvo', () => {
           at: '2026-06-01T08:00:00.000Z',
           category: 'saude',
           gold: 5,
+          bonusXp: 0,
         },
       ],
       maxTotalXp: 25,
@@ -147,6 +148,7 @@ describe('bug #10 - migração e validação do estado salvo', () => {
       purchases: [
         {
           id: 'p1',
+          kind: 'reward',
           rewardId: 'r1',
           title: 'Café especial',
           cost: 25,
@@ -297,6 +299,60 @@ describe('bug #10 - migração e validação do estado salvo', () => {
 
     expect(migrated.rewards.map((reward) => reward.id)).toEqual(['r1']);
     expect(migrated.purchases.map((purchase) => purchase.id)).toEqual(['p1']);
+  });
+
+  it('preenche o bônus com 0 e marca resgates antigos como recompensa (v6 → v7)', () => {
+    const v6 = {
+      schemaVersion: 6,
+      quests: [],
+      completions: [
+        { id: 'c1', questId: 'q1', xp: 100, at: '2026-06-01T08:00:00.000Z', category: 'saude', gold: 20 },
+      ],
+      rewards: [{ id: 'r1', title: 'Café', cost: 25 }],
+      purchases: [{ id: 'p1', rewardId: 'r1', title: 'Café', cost: 25, at: '2026-06-02T12:00:00.000Z' }],
+    };
+
+    const migrated = migrateState(v6)!;
+
+    // Bônus de sequência não existia: nada de retroativo.
+    expect(migrated.completions[0].bonusXp).toBe(0);
+    expect(migrated.completions[0].xp).toBe(100);
+    expect(migrated.completions[0].gold).toBe(20);
+    expect(migrated.purchases[0].kind).toBe('reward');
+  });
+
+  it('preserva o bônus de sequência já gravado na conclusão', () => {
+    const migrated = migrateState({
+      schemaVersion: SCHEMA_VERSION,
+      quests: [],
+      completions: [
+        {
+          id: 'c1',
+          questId: 'q1',
+          xp: 30,
+          at: '2026-06-01T08:00:00.000Z',
+          category: 'saude',
+          gold: 5,
+          bonusXp: 5,
+        },
+      ],
+    })!;
+
+    expect(migrated.completions[0].bonusXp).toBe(5);
+    expect(migrated.completions[0].xp).toBe(30);
+  });
+
+  it('aceita o resgate de um escudo de sequência', () => {
+    const migrated = migrateState({
+      schemaVersion: SCHEMA_VERSION,
+      quests: [],
+      purchases: [
+        { id: 'p1', kind: 'shield', rewardId: 'escudo', title: 'Escudo', cost: 100, at: '2026-06-02T12:00:00.000Z' },
+      ],
+    })!;
+
+    expect(migrated.purchases[0].kind).toBe('shield');
+    expect(deriveStats(migrated, '2026-06-02').shieldsOwned).toBe(1);
   });
 
   it('retorna null para dados irrecuperáveis', () => {
