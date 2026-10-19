@@ -1,6 +1,7 @@
-import type { AppState, Completion, GameStats, Quest } from '../types';
+import type { AppState, Completion, GameStats } from '../types';
 import { addDaysToKey, dateKey, dateKeyFromIso } from '../utils/dates';
 import { levelFromXp } from '../utils/level';
+import { deriveAttributes } from './attributes';
 
 /** Soma do XP de todas as conclusões. */
 export function totalXpFrom(completions: Completion[]): number {
@@ -68,15 +69,6 @@ export function deriveStats(state: AppState, today: string = dateKey()): GameSta
     longestStreak: longestStreakFrom(state.completions),
     xpToday: xpOnDay(state.completions, today),
     level: levelFromXp(totalXp),
+    attributes: deriveAttributes(state.completions),
   };
-}
-
-/** Quantidade de conclusões por categoria (para a tela de Progresso). */
-export function completionsByCategory(quests: Quest[]): Record<string, number> {
-  return quests
-    .filter((quest) => quest.completed)
-    .reduce<Record<string, number>>((acc, quest) => {
-      acc[quest.category] = (acc[quest.category] ?? 0) + 1;
-      return acc;
-    }, {});
 }

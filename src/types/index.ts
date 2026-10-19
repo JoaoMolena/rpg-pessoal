@@ -10,7 +10,7 @@ export type QuestCategory =
 export type QuestDifficulty = 'facil' | 'media' | 'dificil' | 'epica';
 
 /** Versão atual do formato de dados persistido. */
-export const SCHEMA_VERSION = 4;
+export const SCHEMA_VERSION = 5;
 
 /** Dia da semana: 0 = domingo ... 6 = sábado (mesma convenção de `Date.getDay()`). */
 export type Weekday = 0 | 1 | 2 | 3 | 4 | 5 | 6;
@@ -41,8 +41,9 @@ export interface Quest {
 /**
  * Registro imutável de uma conclusão.
  *
- * É a **fonte de verdade** do XP e da sequência: o `xp` é congelado no momento da
- * conclusão, então editar a dificuldade da missão depois não altera o XP ganho.
+ * É a **fonte de verdade** do XP, da sequência e dos atributos: tanto o `xp`
+ * quanto a `category` são congelados no momento da conclusão. Assim, editar a
+ * dificuldade ou a categoria da missão depois não move XP nem atributo.
  */
 export interface Completion {
   id: string;
@@ -51,6 +52,8 @@ export interface Completion {
   xp: number;
   /** Data/hora (ISO 8601) da conclusão. */
   at: string;
+  /** Categoria da missão no momento da conclusão (define o atributo). */
+  category: QuestCategory;
 }
 
 /**
@@ -116,6 +119,26 @@ export interface AppState {
 }
 
 /**
+ * Progresso de um atributo (uma categoria) — derivado do log, nunca armazenado.
+ *
+ * O nível do atributo usa a **mesma curva** do nível global, aplicada só ao XP
+ * daquela categoria. Consequência: se todo o seu XP fosse de uma única
+ * categoria, o atributo teria exatamente o seu nível global.
+ */
+export interface AttributeStats {
+  key: QuestCategory;
+  /** XP acumulado nas missões desta categoria. */
+  xp: number;
+  /** Quantidade de missões concluídas desta categoria. */
+  completions: number;
+  level: number;
+  /** XP conquistado dentro do nível atual do atributo. */
+  progressIntoLevel: number;
+  /** XP necessário para subir um nível do atributo. */
+  levelRange: number;
+}
+
+/**
  * Estatísticas derivadas do estado — nunca armazenadas.
  * Consumidas pela UI e pelas conquistas.
  */
@@ -130,6 +153,8 @@ export interface GameStats {
   xpToday: number;
   /** Nível atual, derivado do XP total. */
   level: number;
+  /** Atributos por categoria (sempre as 7 chaves, mesmo zeradas). */
+  attributes: Record<QuestCategory, AttributeStats>;
 }
 
 export interface QuestInput {

@@ -46,6 +46,7 @@ function toggle(state: AppState, id: string, at: string): AppState {
     questId: id,
     xp: quest.xpReward,
     at,
+    category: quest.category,
   };
   return reducer(state, { type: 'TOGGLE_QUEST', id, completion });
 }

@@ -5,19 +5,15 @@ import { EmptyState } from '../../components/EmptyState';
 import { StatCard } from '../../components/StatCard';
 import { XPBar } from '../../components/XPBar';
 import { useGame } from '../../context/GameContext';
-import { completionsByCategory } from '../../domain/stats';
 import { ACHIEVEMENTS, CATEGORIES, CATEGORY_KEYS, cardShadow, colors } from '../../theme/game';
 import type { Quest, QuestCategory } from '../../types';
 import { formatShortDate } from '../../utils/dates';
+import { missionCountLabel } from '../../utils/format';
 
 export default function ProgressScreen() {
   const { state, stats, levelInfo } = useGame();
 
   const unlocked = ACHIEVEMENTS.filter((a) => a.check(stats));
-
-  // Missões concluídas por categoria.
-  const completedByCategory = completionsByCategory(state.quests);
-  const maxCategoryCount = Math.max(1, ...Object.values(completedByCategory));
 
   // Histórico derivado do log de conclusões (o XP exibido é o creditado na hora).
   const questById = new Map(state.quests.map((quest) => [quest.id, quest]));
@@ -123,41 +119,52 @@ export default function ProgressScreen() {
         })}
       </View>
 
-      {/* Progresso por categoria */}
-      <Text style={styles.sectionTitle}>Por categoria</Text>
-      {Object.keys(completedByCategory).length === 0 ? (
-        <EmptyState
-          icon="chart-donut"
-          title="Sem dados ainda"
-          message="Conclua missões para descobrir em que áreas você mais evolui."
-        />
-      ) : (
-        <View style={styles.categoryList}>
-          {CATEGORY_KEYS.filter((c) => completedByCategory[c]).map((category: QuestCategory) => {
-            const info = CATEGORIES[category];
-            const count = completedByCategory[category];
-            return (
-              <View key={category} style={styles.categoryRow}>
-                <View style={styles.categoryHeader}>
-                  <View style={styles.categoryLabel}>
-                    <MaterialCommunityIcons name={info.icon} size={15} color={info.color} />
-                    <Text style={styles.categoryName}>{info.label}</Text>
-                  </View>
-                  <Text style={styles.categoryCount}>{count}</Text>
+      {/* Atributos por categoria */}
+      <Text style={styles.sectionTitle}>Atributos</Text>
+      <Text style={styles.sectionHint}>
+        Cada categoria evolui por conta própria: o XP das missões daquela área vira um nível de
+        atributo.
+      </Text>
+      <View style={styles.attributeList}>
+        {CATEGORY_KEYS.map((category: QuestCategory) => {
+          const info = CATEGORIES[category];
+          const attribute = stats.attributes[category];
+          const progress =
+            attribute.levelRange > 0 ? attribute.progressIntoLevel / attribute.levelRange : 0;
+
+          return (
+            <View key={category} style={styles.attributeRow}>
+              <View style={[styles.attributeIcon, { backgroundColor: `${info.color}22` }]}>
+                <MaterialCommunityIcons name={info.icon} size={18} color={info.color} />
+              </View>
+
+              <View style={styles.attributeBody}>
+                <View style={styles.attributeHeader}>
+                  <Text style={styles.attributeName}>{info.label}</Text>
+                  <Text style={styles.attributeMeta}>
+                    {attribute.xp} XP · {missionCountLabel(attribute.completions)}
+                  </Text>
                 </View>
-                <View style={styles.categoryTrack}>
+                <View style={styles.attributeTrack}>
                   <View
                     style={[
-                      styles.categoryFill,
-                      { width: `${(count / maxCategoryCount) * 100}%`, backgroundColor: info.color },
+                      styles.attributeFill,
+                      { width: `${progress * 100}%`, backgroundColor: info.color },
                     ]}
                   />
                 </View>
               </View>
-            );
-          })}
-        </View>
-      )}
+
+              <View style={styles.attributeLevel}>
+                <Text style={[styles.attributeLevelValue, { color: info.color }]}>
+                  {attribute.level}
+                </Text>
+                <Text style={styles.attributeLevelLabel}>NÍVEL</Text>
+              </View>
+            </View>
+          );
+        })}
+      </View>
 
       {/* Histórico recente */}
       <Text style={styles.sectionTitle}>Histórico recente</Text>
@@ -252,6 +259,12 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     marginTop: 10,
   },
+  sectionHint: {
+    color: colors.textMuted,
+    fontSize: 12.5,
+    lineHeight: 18,
+    marginTop: -6,
+  },
   achievementList: {
     gap: 10,
   },
@@ -291,41 +304,70 @@ const styles = StyleSheet.create({
   textMuted: {
     color: colors.textMuted,
   },
-  categoryList: {
-    gap: 14,
+  attributeList: {
+    gap: 10,
   },
-  categoryRow: {
-    gap: 6,
-  },
-  categoryHeader: {
+  attributeRow: {
     flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+  },
+  attributeIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  attributeBody: {
+    flex: 1,
+    gap: 7,
+  },
+  attributeHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    gap: 8,
   },
-  categoryLabel: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  categoryName: {
+  attributeName: {
     color: colors.text,
-    fontSize: 13.5,
-    fontWeight: '700',
-  },
-  categoryCount: {
-    color: colors.textMuted,
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '800',
   },
-  categoryTrack: {
-    height: 8,
+  attributeMeta: {
+    color: colors.textMuted,
+    fontSize: 11.5,
+    fontWeight: '600',
+  },
+  attributeTrack: {
+    height: 7,
     borderRadius: 4,
     backgroundColor: colors.surfaceAlt,
     overflow: 'hidden',
   },
-  categoryFill: {
+  attributeFill: {
     height: '100%',
     borderRadius: 4,
+  },
+  attributeLevel: {
+    alignItems: 'center',
+    minWidth: 40,
+  },
+  attributeLevelValue: {
+    fontSize: 20,
+    fontWeight: '900',
+  },
+  attributeLevelLabel: {
+    color: colors.textMuted,
+    fontSize: 9,
+    fontWeight: '800',
+    letterSpacing: 0.5,
   },
   historyList: {
     gap: 8,

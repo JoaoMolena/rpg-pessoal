@@ -151,7 +151,13 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       dispatch({
         type: 'TOGGLE_QUEST',
         id,
-        completion: { id: createId(), questId: id, xp: quest.xpReward, at: new Date().toISOString() },
+        completion: {
+          id: createId(),
+          questId: id,
+          xp: quest.xpReward,
+          at: new Date().toISOString(),
+          category: quest.category,
+        },
       });
     },
     [state.quests]
