@@ -8,13 +8,14 @@ Transforme suas tarefas diárias em missões, ganhe XP, soba de nível e mantenh
 - **Missões diárias**: crie, edite, conclua e exclua missões com categoria (Saúde, Estudo, Trabalho, Finanças, Lazer, Social, Outros) e dificuldade (Fácil, Média, Difícil, Épica).
 - **Sistema de XP e níveis**: cada missão concluída concede XP conforme a dificuldade; o nível é calculado a partir do XP acumulado, com curva de dificuldade crescente.
 - **Títulos (ranks)**: Recruta → Aprendiz → Aventureiro → Herói → Veterano → Elite → Mestre → Lenda → Mítico.
-- **Sequência (streak)**: ganhe bônus de constância por dias consecutivos com missões concluídas.
+- **Sequência (streak)**: acompanhe os dias consecutivos com pelo menos uma missão concluída. O streak volta a zero ao passar um dia inteiro sem concluir nada (não há bônus de XP por constância).
 - **Tela de Progresso**: estatísticas, conquistas desbloqueáveis, progresso por categoria e histórico recente.
 - **Missões atrasadas**: missões não concluídas no dia anterior aparecem destacadas para você não esquecê-las.
 - **Celebração de Level Up**: overlay animado quando você sobe de nível.
 - **Perfil personalizável**: nome e avatar do herói.
 - **Persistência local**: todo o progresso é salvo com `AsyncStorage` e sobrevive ao fechamento do app.
-- **Modo escuro moderno**: paleta escura com gradientes roxo/ciano, cartões arredondados e somagens suaves.
+- **Dados versionados**: o estado salvo tem `schemaVersion` e passa por migração/validação na leitura (v1 → v2), sem perder XP.
+- **Modo escuro moderno**: paleta escura com gradientes roxo/ciano, cartões arredondados e sombras suaves.
 
 ## 🚀 Como executar
 
@@ -35,7 +36,7 @@ Escaneie o QR code com o app **Expo Go** (Android/iOS), ou pressione `a` (Androi
 ```
 src/
 ├── app/                    # Rotas (Expo Router — file-based routing)
-│   ├── _layout.tsx         # Layout raiz (Stack + provider + overlay de level up)
+│   ├── _layout.tsx         # Layout raiz (hidratação + providers + overlay de level up)
 │   ├── (tabs)/
 │   │   ├── _layout.tsx     # Navegação por abas
 │   │   ├── index.tsx       # Início (painel do herói + missões de hoje)
@@ -43,16 +44,33 @@ src/
 │   │   └── progresso.tsx   # Progresso (stats, conquistas, histórico)
 │   ├── nova-missao.tsx     # Modal de criação/edição de missão
 │   └── editar-perfil.tsx   # Modal de perfil (nome, avatar, reset)
-├── components/             # Componentes reutilizáveis
-├── context/GameContext.tsx # Estado global + persistência + regras de XP/streak
-├── storage/storage.ts      # Leitura/escrita no AsyncStorage
+├── components/             # Componentes reutilizáveis (inclui ConfirmDialog)
+├── context/GameContext.tsx # Estado global + persistência + hidratação
+├── domain/                 # Regras puras (reducer + estatísticas derivadas)
+│   ├── reducer.ts          # Reducer puro (ações entram com id/data prontos)
+│   └── stats.ts            # XP, streak e nível derivados do log de conclusões
+├── hooks/useToday.ts       # "Hoje" reativo (AppState + virada do dia)
+├── storage/
+│   ├── storage.ts          # Leitura/escrita no AsyncStorage
+│   └── migrations.ts       # Validação + migração de schema (v1 → v2)
 ├── theme/game.ts           # Cores, gradientes, categorias, dificuldades, conquistas
 ├── types/index.ts          # Tipos do domínio
 └── utils/
     ├── level.ts            # Fórmulas de nível e ranks
     ├── dates.ts            # Utilitários de data (dias, streak, saudações)
+    ├── format.ts           # Formatação (plural de missões)
     └── id.ts               # Gerador de IDs
 ```
+
+## 🧪 Testes e qualidade
+
+```bash
+npm test            # testes unitários (Jest + jest-expo)
+npm run lint        # ESLint (expo lint)
+npm run typecheck   # TypeScript (tsc --noEmit)
+```
+
+O workflow [`.github/workflows/ci.yml`](.github/workflows/ci.yml) roda os três a cada push/PR.
 
 ## 📊 Fórmula de nível
 
