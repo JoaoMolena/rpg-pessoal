@@ -1,4 +1,4 @@
-import { DEFAULT_NOTIFICATION_SETTINGS, type AppState, type Completion, type Quest } from '../../types';
+import { DEFAULT_NOTIFICATION_SETTINGS, type AppState, type Completion, type Quest, type QuestCategory } from '../../types';
 import {
   currentStreakFrom,
   deriveStats,
@@ -7,8 +7,14 @@ import {
   xpOnDay,
 } from '../stats';
 
-function completion(id: string, questId: string, xp: number, at: string): Completion {
-  return { id, questId, xp, at };
+function completion(
+  id: string,
+  questId: string,
+  xp: number,
+  at: string,
+  category: QuestCategory = 'outros'
+): Completion {
+  return { id, questId, xp, at, category };
 }
 
 function at(year: number, month: number, day: number, hour = 12, minute = 0): string {

@@ -21,8 +21,9 @@ import { parseTime } from '../utils/time';
  *
  * Toda leitura passa por aqui, de forma que o app nunca recebe um objeto mal
  * formado: campos ausentes ganham valores padrão e estados de versões antigas
- * são migrados (v1 → v2 → v3 → v4) reconstruindo o log de conclusões e
- * adicionando os campos novos — sem perder XP.
+ * são migrados (v1 → v2 → v3 → v4 → v5) reconstruindo o log de conclusões e
+ * adicionando os campos novos (categoria do log, recorrências, notificações) —
+ * sem perder XP.
  */
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -122,17 +123,28 @@ function normalizeQuest(raw: unknown): Quest | null {
   };
 }
 
-function normalizeCompletion(raw: unknown): Completion | null {
+function normalizeCompletion(
+  raw: unknown,
+  categoryByQuestId: Map<string, QuestCategory>
+): Completion | null {
   if (!isRecord(raw)) return null;
   const questId = asString(raw.questId);
   const at = asString(raw.at);
   if (!questId || !at) return null;
+
+  // Até a v4 o log não guardava a categoria: reconstrói pela missão de origem
+  // (o `DELETE_QUEST` remove missão e conclusões juntas, então o caso normal
+  // sempre encontra). "outros" é só o último recurso para dados externos.
+  const category = isCategory(raw.category)
+    ? raw.category
+    : categoryByQuestId.get(questId) ?? 'outros';
 
   return {
     id: asString(raw.id, `completion-${questId}-${at}`),
     questId,
     xp: asNumber(raw.xp, 0),
     at,
+    category,
   };
 }
 
@@ -159,6 +171,7 @@ function migrateV1toV2(raw: Record<string, unknown>): AppState {
       questId: quest.id,
       xp: quest.xpReward,
       at: legacyCompletionDate(quest),
+      category: quest.category,
     }));
 
   const legacyStats = isRecord(raw.stats) ? raw.stats : {};
@@ -184,9 +197,12 @@ function normalizeCurrent(raw: Record<string, unknown>): AppState {
     .map(normalizeQuest)
     .filter((quest): quest is Quest => quest !== null);
 
+  // As conclusões antigas não guardam a categoria: o mapa reconstrói pela missão.
+  const categoryByQuestId = new Map(quests.map((quest) => [quest.id, quest.category]));
+
   const rawCompletions = Array.isArray(raw.completions) ? raw.completions : [];
   const completions = rawCompletions
-    .map(normalizeCompletion)
+    .map((completion) => normalizeCompletion(completion, categoryByQuestId))
     .filter((completion): completion is Completion => completion !== null);
 
   const rawTemplates = Array.isArray(raw.templates) ? raw.templates : [];

@@ -115,7 +115,7 @@ describe('bug #10 - migração e validação do estado salvo', () => {
           templateId: 't1',
         },
       ],
-      completions: [{ id: 'c1', questId: 'q1', xp: 25, at: '2026-06-01T08:00:00.000Z' }],
+      completions: [{ id: 'c1', questId: 'q1', xp: 25, at: '2026-06-01T08:00:00.000Z', category: 'saude' }],
       maxTotalXp: 25,
       templates: [
         {
@@ -180,6 +180,48 @@ describe('bug #10 - migração e validação do estado salvo', () => {
       streakEnabled: true,
       streakTime: '23:45',
     });
+  });
+
+  it('preenche a categoria das conclusões antigas a partir da missão (v4 → v5)', () => {
+    const v4 = {
+      schemaVersion: 4,
+      quests: [
+        {
+          id: 'q1',
+          title: 'Ler um livro',
+          category: 'estudo',
+          difficulty: 'media',
+          xpReward: 25,
+          date: '2026-06-01',
+          completed: true,
+        },
+      ],
+      completions: [{ id: 'c1', questId: 'q1', xp: 25, at: '2026-06-01T08:00:00.000Z' }],
+    };
+
+    const migrated = migrateState(v4)!;
+
+    expect(migrated.completions).toHaveLength(1);
+    expect(migrated.completions[0].category).toBe('estudo');
+    expect(migrated.schemaVersion).toBe(SCHEMA_VERSION);
+  });
+
+  it('usa "outros" quando a missão da conclusão não existe mais', () => {
+    const migrated = migrateState({
+      schemaVersion: 4,
+      quests: [],
+      completions: [{ id: 'c1', questId: 'fantasma', xp: 25, at: '2026-06-01T08:00:00.000Z' }],
+    })!;
+
+    expect(migrated.completions[0].category).toBe('outros');
+  });
+
+  it('migra v1 dando a cada conclusão a categoria da sua missão', () => {
+    const migrated = migrateState(V1_STATE)!;
+
+    const porMissao = new Map(migrated.completions.map((c) => [c.questId, c.category]));
+    expect(porMissao.get('a')).toBe('saude');
+    expect(porMissao.get('b')).toBe('estudo');
   });
 
   it('retorna null para dados irrecuperáveis', () => {
