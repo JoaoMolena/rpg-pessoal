@@ -25,6 +25,7 @@ Transforme suas tarefas diárias em missões, ganhe XP, soba de nível e mantenh
 - **Persistência local**: todo o progresso é salvo com `AsyncStorage` e sobrevive ao fechamento do app.
 - **Dados versionados**: o estado salvo tem `schemaVersion` e passa por migração/validação na leitura (v1 → v2 → v3 → v4 → v5 → v6 → v7 → v8 → v9), sem perder XP, ouro nem histórico.
 - **Modo escuro moderno**: paleta escura com gradientes roxo/ciano, cartões arredondados e sombras suaves.
+- **Splash nativa**: o logo Loopin sobre o fundo escuro do app, configurada pelo plugin `expo-splash-screen` e com fade para a interface — sem piscar nem salto de cor. (Só aparece de verdade em **build**; no Expo Go o Android mostra o ícone do app por causa da API de splash do Android 12+.)
 
 ## 🚀 Como executar
 
@@ -38,7 +39,7 @@ npx expo start
 
 Escaneie o QR code com o app **Expo Go** (Android/iOS), ou pressione `a` (Android) / `i` (iOS) com um emulador aberto.
 
-> Observação: o app usa apenas módulos compatíveis com o Expo Go (`expo-router`, `AsyncStorage`, `LinearGradient`, ícones, `expo-notifications` local, `expo-haptics`, `expo-file-system`, `expo-sharing`, `expo-document-picker`), então não é necessário build de desenvolvimento. Só o *push* remoto do `expo-notifications` exigiria um build de desenvolvimento — o app não usa push.
+> Observação: o app usa apenas módulos compatíveis com o Expo Go (`expo-router`, `AsyncStorage`, `LinearGradient`, ícones, `expo-notifications` local, `expo-haptics`, `expo-file-system`, `expo-sharing`, `expo-document-picker`, `expo-splash-screen`), então não é necessário build de desenvolvimento. Só o *push* remoto do `expo-notifications` exigiria um build de desenvolvimento — o app não usa push. A splash, porém, só reflete a configuração num build (no Expo Go o Android mostra o ícone do app).
 
 ## 📁 Estrutura do projeto
 
@@ -85,7 +86,9 @@ src/
 │   ├── storage.ts          # Leitura/escrita no AsyncStorage
 │   └── migrations.ts       # Validação + migração de schema (v1 → v2 → … → v9)
 ├── theme/game.ts           # Cores, gradientes, categorias e dificuldades
-├── types/index.ts          # Tipos do domínio
+├── types/
+│   ├── index.ts            # Tipos do domínio
+│   └── images.d.ts         # Declaração de `*.png` (o expo-env.d.ts é gerado e não vai para o Git)
 └── utils/
     ├── level.ts            # Fórmulas de nível e ranks
     ├── dates.ts            # Utilitários de data (dias, streak, saudações)
@@ -163,4 +166,4 @@ Para não perder a sequência num dia atrapalhado, a loja vende o **escudo de se
 - React Native 0.88 + React 19
 - TypeScript (modo estrito)
 - `@react-native-async-storage/async-storage` (persistência)
-- `expo-linear-gradient` (gradientes) · `@expo/vector-icons` (ícones Material Community) · `expo-notifications` (notificações locais) · `expo-haptics` (vibração) · `expo-file-system` + `expo-sharing` + `expo-document-picker` (backup em arquivo)
+- `expo-linear-gradient` (gradientes) · `@expo/vector-icons` (ícones Material Community) · `expo-notifications` (notificações locais) · `expo-haptics` (vibração) · `expo-file-system` + `expo-sharing` + `expo-document-picker` (backup em arquivo) · `expo-splash-screen` (splash nativa)
