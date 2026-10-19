@@ -12,16 +12,18 @@ Transforme suas tarefas diárias em missões, ganhe XP, soba de nível e mantenh
 - **Atributos por categoria**: cada uma das 7 categorias tem XP e **nível próprio** (o "atributo"). O XP da categoria fica congelado no momento da conclusão, então editar a missão depois não move atributo.
 - **Ouro e loja de recompensas**: cada 5 XP viram 1 de ouro (fácil 2 · média 5 · difícil 10 · épica 20). Crie as suas próprias recompensas com o preço que quiser e resgate-as com o ouro conquistado. O ouro ganho fica congelado na conclusão e o resgate é bloqueado sem saldo.
 - **Escudo de sequência**: compre com ouro (100 cada, até 3 em reserva) um dia de folga. Se você perder um dia, o escudo é consumido no seu lugar e a sequência continua viva. Ele vale do dia da compra em diante — não conserta buracos antigos.
+- **Missões épicas com subtarefas**: quebre uma missão grande em até 12 passos. Ela só conta como concluída quando **todos** os passos estiverem marcados — e continua sendo **uma** entrada no log, com XP, ouro e bônus congelados naquele momento. Marcar um passo não dá XP parcial (de propósito: prêmio por passo inflaria o histórico). Desmarcar um passo de uma missão concluída desfaz a conclusão. Editar a missão reconcilia os passos **pelo título**, preservando o que já estava marcado e sem tocar no log.
 - **Títulos (ranks)**: Recruta → Aprendiz → Aventureiro → Herói → Veterano → Elite → Mestre → Lenda → Mítico.
 - **Sequência (streak)**: acompanhe os dias consecutivos com pelo menos uma missão concluída. Quanto maior a sequência, mais XP cada missão rende: **+10% a partir de 3 dias**, até **+50% a partir de 30**. Ao passar um dia inteiro sem concluir nada, a sequência volta a zero — a menos que você tenha um **escudo de sequência**.
-- **Tela de Progresso**: estatísticas, conquistas desbloqueáveis, progresso por categoria e histórico recente.
+- **Tela de Progresso**: estatísticas, conquistas (cada uma com a **data em que foi desbloqueada**), progresso por categoria e histórico recente.
+- **Conquistas**: 17 conquistas derivadas do histórico — missões concluídas, XP acumulado, nível, sequência (contando os dias cobertos por escudo), épicas, categoria fechada, atributo forte e compras na loja. A data de desbloqueio é **calculada varrendo o log**, nunca gravada; desbloquear dispara um **banner no topo** com a data, que se fecha sozinho e não repete.
 - **Missões atrasadas**: missões não concluídas no dia anterior aparecem destacadas para você não esquecê-las.
 - **Celebração de Level Up**: overlay animado quando você sobe de nível.
 - **Feedback de conclusão**: vibração, "+XP" animado e toast com **"Desfazer"** para desmarcar na hora. Respeita "reduzir movimento" do sistema (sem deslocamentos).
 - **Backup dos dados**: exporte todo o progresso num arquivo `.json` (para guardar ou trocar de aparelho) e importe de volta. A importação valida o arquivo, migra backups antigos e confirma antes de substituir o progresso atual.
 - **Perfil personalizável**: nome e avatar do herói.
 - **Persistência local**: todo o progresso é salvo com `AsyncStorage` e sobrevive ao fechamento do app.
-- **Dados versionados**: o estado salvo tem `schemaVersion` e passa por migração/validação na leitura (v1 → v2 → v3 → v4 → v5 → v6 → v7), sem perder XP nem ouro.
+- **Dados versionados**: o estado salvo tem `schemaVersion` e passa por migração/validação na leitura (v1 → v2 → v3 → v4 → v5 → v6 → v7 → v8 → v9), sem perder XP, ouro nem histórico.
 - **Modo escuro moderno**: paleta escura com gradientes roxo/ciano, cartões arredondados e sombras suaves.
 
 ## 🚀 Como executar
@@ -60,7 +62,7 @@ src/
 ├── backup/                 # Backup em JSON
 │   ├── format.ts           # Serialização + validação/migração do arquivo (puro)
 │   └── backup.ts           # Gravar/compartilhar e escolher/ler o arquivo (nativo)
-├── components/             # Componentes reutilizáveis (ConfirmDialog, TemplateCard, RewardCard, TimeField, CompletionFeedback...)
+├── components/             # Componentes reutilizáveis (ConfirmDialog, TemplateCard, RewardCard, TimeField, CompletionFeedback, AchievementFeedback...)
 ├── context/GameContext.tsx # Estado global + persistência + hidratação + geração diária + feedback
 ├── domain/                 # Regras puras (reducer + estatísticas derivadas)
 │   ├── reducer.ts          # Reducer puro (ações entram com id/data prontos)
@@ -69,6 +71,8 @@ src/
 │   ├── economy.ts          # Ouro: taxa de conversão, ganho, gasto e saldo
 │   ├── streak.ts           # Bônus de XP por sequência (degraus + cálculo)
 │   ├── shield.ts           # Escudo de sequência (preço, reserva e dias protegidos)
+│   ├── subtasks.ts         # Passos da missão (todos marcados + reconciliação por título)
+│   ├── achievements.ts     # Catálogo de conquistas + data de desbloqueio derivada do log
 │   └── stats.ts            # XP, streak, nível, atributos, ouro e escudos derivados do log
 ├── hooks/
 │   ├── useToday.ts         # "Hoje" reativo (AppState + virada do dia)
@@ -79,8 +83,8 @@ src/
 │   └── useNotificationSync.ts # Sincroniza os lembretes com o estado
 ├── storage/
 │   ├── storage.ts          # Leitura/escrita no AsyncStorage
-│   └── migrations.ts       # Validação + migração de schema (v1 → v2 → v3 → v4 → v5 → v6 → v7)
-├── theme/game.ts           # Cores, gradientes, categorias, dificuldades, conquistas
+│   └── migrations.ts       # Validação + migração de schema (v1 → v2 → … → v9)
+├── theme/game.ts           # Cores, gradientes, categorias e dificuldades
 ├── types/index.ts          # Tipos do domínio
 └── utils/
     ├── level.ts            # Fórmulas de nível e ranks
