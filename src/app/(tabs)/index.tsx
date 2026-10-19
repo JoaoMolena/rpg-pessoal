@@ -77,9 +77,18 @@ export default function DashboardScreen() {
                 Nível {levelInfo.level} · {levelInfo.rank}
               </Text>
             </View>
-            <View style={styles.streak}>
+            <Pressable
+              onPress={() => router.push('/loja')}
+              accessibilityRole="button"
+              accessibilityLabel={`Abrir loja. ${stats.gold} de ouro disponível`}
+              style={({ pressed }) => [styles.hudPill, pressed && styles.hudPillPressed]}
+            >
+              <MaterialCommunityIcons name="circle-multiple" size={16} color={colors.bgDeep} />
+              <Text style={styles.hudPillText}>{stats.gold}</Text>
+            </Pressable>
+            <View style={styles.hudPill}>
               <MaterialCommunityIcons name="fire" size={16} color={colors.bgDeep} />
-              <Text style={styles.streakText}>{stats.currentStreak}</Text>
+              <Text style={styles.hudPillText}>{stats.currentStreak}</Text>
             </View>
           </View>
 
@@ -251,7 +260,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
   },
-  streak: {
+  hudPill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
@@ -260,7 +269,10 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 12,
   },
-  streakText: {
+  hudPillPressed: {
+    opacity: 0.7,
+  },
+  hudPillText: {
     color: colors.bgDeep,
     fontSize: 14,
     fontWeight: '900',

@@ -14,7 +14,7 @@ function completion(
   at: string,
   category: QuestCategory = 'outros'
 ): Completion {
-  return { id, questId, xp, at, category };
+  return { id, questId, xp, at, category, gold: Math.round(xp / 5) };
 }
 
 function at(year: number, month: number, day: number, hour = 12, minute = 0): string {
@@ -43,6 +43,8 @@ function stateWith(completions: Completion[]): AppState {
     maxTotalXp: totalXpFrom(completions),
     templates: [],
     notifications: DEFAULT_NOTIFICATION_SETTINGS,
+    rewards: [],
+    purchases: [],
   };
 }
 

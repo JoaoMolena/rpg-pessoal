@@ -9,8 +9,9 @@ import React, {
   useState,
 } from 'react';
 
-import { buildQuest, createInitialState, reducer } from '../domain/reducer';
+import { buildQuest, buildReward, createInitialState, reducer } from '../domain/reducer';
 import { buildTemplate, planGeneration } from '../domain/recurrence';
+import { goldBalance, goldFromXp } from '../domain/economy';
 import { deriveStats } from '../domain/stats';
 import { useToday } from '../hooks/useToday';
 import { clearState, loadState, saveState } from '../storage/storage';
@@ -18,10 +19,13 @@ import type {
   AppState,
   GameStats,
   NotificationSettings,
+  Purchase,
   Quest,
   QuestInput,
   QuestTemplate,
   QuestTemplateInput,
+  Reward,
+  RewardInput,
 } from '../types';
 import { dateKey } from '../utils/dates';
 import { createId } from '../utils/id';
@@ -32,6 +36,7 @@ export interface CompletionFeedback {
   questId: string;
   title: string;
   xp: number;
+  gold: number;
 }
 
 export interface GameContextValue {
@@ -58,6 +63,10 @@ export interface GameContextValue {
   templates: QuestTemplate[];
   /** Preferências de notificações locais. */
   notifications: NotificationSettings;
+  /** Recompensas personalizadas à venda na loja. */
+  rewards: Reward[];
+  /** Histórico de resgates (mais recentes primeiro). */
+  purchases: Purchase[];
   addQuest: (input: QuestInput) => void;
   updateQuest: (id: string, input: QuestInput) => void;
   toggleQuest: (id: string) => void;
@@ -68,6 +77,11 @@ export interface GameContextValue {
   deleteTemplate: (id: string) => void;
   setNotifications: (settings: NotificationSettings) => void;
   setPlayer: (name: string, avatar: string) => void;
+  addReward: (input: RewardInput) => void;
+  updateReward: (id: string, input: RewardInput) => void;
+  deleteReward: (id: string) => void;
+  /** Resgata uma recompensa; devolve `false` quando o ouro não é suficiente. */
+  redeemReward: (reward: Reward) => boolean;
   resetProgress: () => void;
   /** Substitui todo o progresso por um estado importado (backup já validado). */
   importState: (next: AppState) => void;
@@ -146,7 +160,14 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       if (!quest) return;
       // Concluir mostra o feedback (`+XP` + "Desfazer"); desmarcar apenas limpa.
       setCompletion(
-        quest.completed ? null : { questId: id, title: quest.title, xp: quest.xpReward }
+        quest.completed
+          ? null
+          : {
+              questId: id,
+              title: quest.title,
+              xp: quest.xpReward,
+              gold: goldFromXp(quest.xpReward),
+            }
       );
       dispatch({
         type: 'TOGGLE_QUEST',
@@ -157,6 +178,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
           xp: quest.xpReward,
           at: new Date().toISOString(),
           category: quest.category,
+          gold: goldFromXp(quest.xpReward),
         },
       });
     },
@@ -197,6 +219,37 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     dispatch({ type: 'SET_PLAYER', name, avatar });
   }, []);
 
+  const addReward = useCallback((input: RewardInput) => {
+    dispatch({ type: 'ADD_REWARD', reward: buildReward(input, createId()) });
+  }, []);
+
+  const updateReward = useCallback((id: string, input: RewardInput) => {
+    dispatch({ type: 'UPDATE_REWARD', id, input });
+  }, []);
+
+  const deleteReward = useCallback((id: string) => {
+    dispatch({ type: 'DELETE_REWARD', id });
+  }, []);
+
+  const redeemReward = useCallback(
+    (reward: Reward): boolean => {
+      // Checa o saldo aqui para poder avisar a UI; o reducer repete a checagem.
+      if (reward.cost > goldBalance(state.completions, state.purchases)) return false;
+      dispatch({
+        type: 'REDEEM_REWARD',
+        purchase: {
+          id: createId(),
+          rewardId: reward.id,
+          title: reward.title,
+          cost: reward.cost,
+          at: new Date().toISOString(),
+        },
+      });
+      return true;
+    },
+    [state.completions, state.purchases]
+  );
+
   const resetProgress = useCallback(() => {
     clearState();
     setLevelUp(null);
@@ -234,6 +287,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       pendingCount,
       templates: state.templates,
       notifications: state.notifications,
+      rewards: state.rewards,
+      purchases: state.purchases,
       addQuest,
       updateQuest,
       toggleQuest,
@@ -244,6 +299,10 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       deleteTemplate,
       setNotifications,
       setPlayer,
+      addReward,
+      updateReward,
+      deleteReward,
+      redeemReward,
       resetProgress,
       importState,
       dismissLevelUp,
@@ -266,6 +325,10 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     deleteTemplate,
     setNotifications,
     setPlayer,
+    addReward,
+    updateReward,
+    deleteReward,
+    redeemReward,
     resetProgress,
     importState,
     dismissLevelUp,

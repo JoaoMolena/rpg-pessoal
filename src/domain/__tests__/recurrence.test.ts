@@ -115,6 +115,8 @@ describe('planGeneration (geração idempotente, sem retroagir)', () => {
       maxTotalXp: 0,
       templates,
       notifications: DEFAULT_NOTIFICATION_SETTINGS,
+      rewards: [],
+      purchases: [],
     };
 
     const applied = reducer(state, { type: 'GENERATE_QUESTS', quests: first, date: MONDAY });

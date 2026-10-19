@@ -9,7 +9,8 @@ import {
   type QuestTemplate,
 } from '../../types';
 import { didLevelUp } from '../../utils/level';
-import { reducer } from '../reducer';
+import { goldBalance, goldFromXp } from '../economy';
+import { buildReward, reducer } from '../reducer';
 import { deriveStats } from '../stats';
 
 function makeQuest(overrides: Partial<Quest> & Pick<Quest, 'id'>): Quest {
@@ -34,6 +35,8 @@ function makeState(quests: Quest[], completions: Completion[] = []): AppState {
     maxTotalXp: 0,
     templates: [],
     notifications: DEFAULT_NOTIFICATION_SETTINGS,
+    rewards: [],
+    purchases: [],
   };
 }
 
@@ -47,6 +50,7 @@ function toggle(state: AppState, id: string, at: string): AppState {
     xp: quest.xpReward,
     at,
     category: quest.category,
+    gold: goldFromXp(quest.xpReward),
   };
   return reducer(state, { type: 'TOGGLE_QUEST', id, completion });
 }
@@ -211,5 +215,98 @@ describe('missões recorrentes no reducer', () => {
 
     expect(next.templates[0].title).toBe('Ler mais');
     expect(next.quests[0].xpReward).toBe(25); // histórico preservado
+  });
+});
+
+describe('loja de recompensas (ouro)', () => {
+  const reward = { id: 'r1', title: 'Café especial', cost: 25 };
+
+  /** Conclusão com o ouro já coerente com o XP (como o provider monta). */
+  function earned(xp: number): Completion {
+    return {
+      id: `c-${xp}`,
+      questId: 'q1',
+      xp,
+      at: DAY,
+      category: 'saude',
+      gold: goldFromXp(xp),
+    };
+  }
+
+  it('buildReward apara os textos e garante preço inteiro e positivo', () => {
+    expect(buildReward({ title: '  Café  ', cost: 0 }, 'r1')).toEqual({
+      id: 'r1',
+      title: 'Café',
+      description: undefined,
+      cost: 1,
+    });
+
+    const jogo = buildReward({ title: 'Jogo', description: '   ', cost: 24.6 }, 'r2');
+    expect(jogo.cost).toBe(25);
+    expect(jogo.description).toBeUndefined();
+  });
+
+  it('ADD_REWARD põe a recompensa na frente da lista', () => {
+    const next = reducer(makeState([]), { type: 'ADD_REWARD', reward });
+
+    expect(next.rewards).toEqual([reward]);
+  });
+
+  it('UPDATE_REWARD altera os dados e mantém o preço válido', () => {
+    let state = reducer(makeState([]), { type: 'ADD_REWARD', reward });
+    state = reducer(state, {
+      type: 'UPDATE_REWARD',
+      id: 'r1',
+      input: { title: 'Jogo', description: 'Uma hora', cost: 0 },
+    });
+
+    expect(state.rewards[0]).toEqual({
+      id: 'r1',
+      title: 'Jogo',
+      description: 'Uma hora',
+      cost: 1,
+    });
+  });
+
+  it('REDEEM_REWARD registra o resgate com o preço congelado', () => {
+    // 100 XP => 20 de ouro.
+    let state = makeState([], [earned(100)]);
+    state = reducer(state, {
+      type: 'REDEEM_REWARD',
+      purchase: { id: 'p1', rewardId: 'r1', title: 'Café especial', cost: 20, at: DAY },
+    });
+
+    expect(state.purchases[0]).toEqual({
+      id: 'p1',
+      rewardId: 'r1',
+      title: 'Café especial',
+      cost: 20,
+      at: DAY,
+    });
+    expect(goldBalance(state.completions, state.purchases)).toBe(0);
+  });
+
+  it('REDEEM_REWARD sem ouro suficiente não faz nada (o saldo nunca fica negativo)', () => {
+    const state = makeState([], [earned(10)]); // 2 de ouro
+    const next = reducer(state, {
+      type: 'REDEEM_REWARD',
+      purchase: { id: 'p1', rewardId: 'r1', title: 'Café especial', cost: 25, at: DAY },
+    });
+
+    expect(next).toBe(state); // nada mudou
+    expect(next.purchases).toHaveLength(0);
+  });
+
+  it('DELETE_REWARD tira da loja sem apagar o histórico de resgates', () => {
+    let state = makeState([], [earned(100)]);
+    state = reducer(state, { type: 'ADD_REWARD', reward });
+    state = reducer(state, {
+      type: 'REDEEM_REWARD',
+      purchase: { id: 'p1', rewardId: 'r1', title: 'Café especial', cost: 20, at: DAY },
+    });
+
+    const next = reducer(state, { type: 'DELETE_REWARD', id: 'r1' });
+    expect(next.rewards).toHaveLength(0);
+    expect(next.purchases).toHaveLength(1); // o ouro gasto continua registrado
   });
 });

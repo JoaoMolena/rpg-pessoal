@@ -65,6 +65,11 @@ function AppShell() {
           name="backup"
           options={{ presentation: 'modal', title: 'Backup dos dados' }}
         />
+        <Stack.Screen name="loja" options={{ presentation: 'modal', title: 'Loja' }} />
+        <Stack.Screen
+          name="nova-recompensa"
+          options={{ presentation: 'modal', title: 'Nova Recompensa' }}
+        />
       </Stack>
       <CompletionFeedback />
       <LevelUpOverlay />

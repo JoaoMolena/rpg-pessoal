@@ -115,7 +115,16 @@ describe('bug #10 - migração e validação do estado salvo', () => {
           templateId: 't1',
         },
       ],
-      completions: [{ id: 'c1', questId: 'q1', xp: 25, at: '2026-06-01T08:00:00.000Z', category: 'saude' }],
+      completions: [
+        {
+          id: 'c1',
+          questId: 'q1',
+          xp: 25,
+          at: '2026-06-01T08:00:00.000Z',
+          category: 'saude',
+          gold: 5,
+        },
+      ],
       maxTotalXp: 25,
       templates: [
         {
@@ -134,6 +143,16 @@ describe('bug #10 - migração e validação do estado salvo', () => {
         streakEnabled: true,
         streakTime: '22:00',
       },
+      rewards: [{ id: 'r1', title: 'Café especial', cost: 25 }],
+      purchases: [
+        {
+          id: 'p1',
+          rewardId: 'r1',
+          title: 'Café especial',
+          cost: 25,
+          at: '2026-06-02T18:00:00.000Z',
+        },
+      ],
     };
 
     expect(migrateState(current)).toEqual(current);
@@ -222,6 +241,62 @@ describe('bug #10 - migração e validação do estado salvo', () => {
     const porMissao = new Map(migrated.completions.map((c) => [c.questId, c.category]));
     expect(porMissao.get('a')).toBe('saude');
     expect(porMissao.get('b')).toBe('estudo');
+  });
+
+  it('preenche o ouro das conclusões antigas a partir do XP (v5 → v6)', () => {
+    const v5 = {
+      schemaVersion: 5,
+      quests: [],
+      completions: [
+        { id: 'c1', questId: 'q1', xp: 100, at: '2026-06-01T08:00:00.000Z', category: 'saude' },
+        { id: 'c2', questId: 'q2', xp: 25, at: '2026-06-01T09:00:00.000Z', category: 'estudo' },
+      ],
+    };
+
+    const migrated = migrateState(v5)!;
+
+    expect(migrated.completions.map((completion) => completion.gold)).toEqual([20, 5]);
+    // A loja entra vazia em estados antigos.
+    expect(migrated.rewards).toEqual([]);
+    expect(migrated.purchases).toEqual([]);
+  });
+
+  it('preserva o ouro já gravado na conclusão', () => {
+    const migrated = migrateState({
+      schemaVersion: SCHEMA_VERSION,
+      quests: [],
+      completions: [
+        {
+          id: 'c1',
+          questId: 'q1',
+          xp: 100,
+          at: '2026-06-01T08:00:00.000Z',
+          category: 'saude',
+          gold: 3,
+        },
+      ],
+    })!;
+
+    expect(migrated.completions[0].gold).toBe(3);
+  });
+
+  it('normaliza a loja e descarta recompensas/resgates inválidos', () => {
+    const migrated = migrateState({
+      schemaVersion: SCHEMA_VERSION,
+      quests: [],
+      rewards: [
+        { id: 'r1', title: 'Café', cost: 25 },
+        { id: 'r2', title: '   ', cost: 10 }, // sem título
+        { id: 'r3', title: 'De graça', cost: 0 }, // preço inválido
+      ],
+      purchases: [
+        { id: 'p1', rewardId: 'r1', title: 'Café', cost: 25, at: '2026-06-02T12:00:00.000Z' },
+        { rewardId: 'r1', cost: 25 }, // sem data
+      ],
+    })!;
+
+    expect(migrated.rewards.map((reward) => reward.id)).toEqual(['r1']);
+    expect(migrated.purchases.map((purchase) => purchase.id)).toEqual(['p1']);
   });
 
   it('retorna null para dados irrecuperáveis', () => {

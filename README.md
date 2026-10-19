@@ -10,6 +10,7 @@ Transforme suas tarefas diárias em missões, ganhe XP, soba de nível e mantenh
 - **Notificações locais**: lembrete diário e aviso de "sequência em risco" no fim do dia, cada um com horário configurável. Roda no próprio aparelho, sem internet; a permissão é pedida só quando você ativa uma opção.
 - **Sistema de XP e níveis**: cada missão concluída concede XP conforme a dificuldade; o nível é calculado a partir do XP acumulado, com curva de dificuldade crescente.
 - **Atributos por categoria**: cada uma das 7 categorias tem XP e **nível próprio** (o "atributo"). O XP da categoria fica congelado no momento da conclusão, então editar a missão depois não move atributo.
+- **Ouro e loja de recompensas**: cada 5 XP viram 1 de ouro (fácil 2 · média 5 · difícil 10 · épica 20). Crie as suas próprias recompensas com o preço que quiser e resgate-as com o ouro conquistado. O ouro ganho fica congelado na conclusão e o resgate é bloqueado sem saldo.
 - **Títulos (ranks)**: Recruta → Aprendiz → Aventureiro → Herói → Veterano → Elite → Mestre → Lenda → Mítico.
 - **Sequência (streak)**: acompanhe os dias consecutivos com pelo menos uma missão concluída. O streak volta a zero ao passar um dia inteiro sem concluir nada (não há bônus de XP por constância).
 - **Tela de Progresso**: estatísticas, conquistas desbloqueáveis, progresso por categoria e histórico recente.
@@ -19,7 +20,7 @@ Transforme suas tarefas diárias em missões, ganhe XP, soba de nível e mantenh
 - **Backup dos dados**: exporte todo o progresso num arquivo `.json` (para guardar ou trocar de aparelho) e importe de volta. A importação valida o arquivo, migra backups antigos e confirma antes de substituir o progresso atual.
 - **Perfil personalizável**: nome e avatar do herói.
 - **Persistência local**: todo o progresso é salvo com `AsyncStorage` e sobrevive ao fechamento do app.
-- **Dados versionados**: o estado salvo tem `schemaVersion` e passa por migração/validação na leitura (v1 → v2 → v3 → v4 → v5), sem perder XP.
+- **Dados versionados**: o estado salvo tem `schemaVersion` e passa por migração/validação na leitura (v1 → v2 → v3 → v4 → v5 → v6), sem perder XP nem ouro.
 - **Modo escuro moderno**: paleta escura com gradientes roxo/ciano, cartões arredondados e sombras suaves.
 
 ## 🚀 Como executar
@@ -52,17 +53,20 @@ src/
 │   ├── nova-recorrente.tsx # Modal de criação/edição de missão recorrente
 │   ├── lembretes.tsx       # Modal de notificações (lembrete diário + sequência)
 │   ├── backup.tsx          # Modal de backup (exportar/importar JSON)
+│   ├── loja.tsx            # Modal da loja (saldo, recompensas e histórico de resgates)
+│   ├── nova-recompensa.tsx # Modal de criação/edição de recompensa
 │   └── editar-perfil.tsx   # Modal de perfil (nome, avatar, reset)
 ├── backup/                 # Backup em JSON
 │   ├── format.ts           # Serialização + validação/migração do arquivo (puro)
 │   └── backup.ts           # Gravar/compartilhar e escolher/ler o arquivo (nativo)
-├── components/             # Componentes reutilizáveis (ConfirmDialog, TemplateCard, TimeField, CompletionFeedback...)
+├── components/             # Componentes reutilizáveis (ConfirmDialog, TemplateCard, RewardCard, TimeField, CompletionFeedback...)
 ├── context/GameContext.tsx # Estado global + persistência + hidratação + geração diária + feedback
 ├── domain/                 # Regras puras (reducer + estatísticas derivadas)
 │   ├── reducer.ts          # Reducer puro (ações entram com id/data prontos)
 │   ├── recurrence.ts       # Recorrência pura (casamento por dia + plano de geração)
 │   ├── attributes.ts       # Atributos por categoria (XP e nível próprios por área)
-│   └── stats.ts            # XP, streak, nível e atributos derivados do log
+│   ├── economy.ts          # Ouro: taxa de conversão, ganho, gasto e saldo
+│   └── stats.ts            # XP, streak, nível, atributos e ouro derivados do log
 ├── hooks/
 │   ├── useToday.ts         # "Hoje" reativo (AppState + virada do dia)
 │   └── useReduceMotion.ts  # Preferência "reduzir movimento" do sistema
@@ -72,7 +76,7 @@ src/
 │   └── useNotificationSync.ts # Sincroniza os lembretes com o estado
 ├── storage/
 │   ├── storage.ts          # Leitura/escrita no AsyncStorage
-│   └── migrations.ts       # Validação + migração de schema (v1 → v2 → v3 → v4 → v5)
+│   └── migrations.ts       # Validação + migração de schema (v1 → v2 → v3 → v4 → v5 → v6)
 ├── theme/game.ts           # Cores, gradientes, categorias, dificuldades, conquistas
 ├── types/index.ts          # Tipos do domínio
 └── utils/
@@ -113,6 +117,17 @@ XP acumulado para atingir o nível L = 50 × (L − 1)²
 A curva quadrática faz o progresso ficar mais desafiador conforme você evolui.
 
 **XP por dificuldade da missão:** Fácil = 10 · Média = 25 · Difícil = 50 · Épica = 100.
+
+## 🪙 Fórmula do ouro
+
+Cada **5 XP** conquistados viram **1 de ouro**:
+
+```
+ouro = round(xp / 5)        →  fácil 2 · média 5 · difícil 10 · épica 20
+saldo = max(0, ouro ganho − ouro gasto em resgates)
+```
+
+A 175 XP/dia (1 épica + 1 difícil + 1 média), isso dá **35 de ouro por dia** — cerca de 1.050 em 30 dias e 3.150 em 90 dias. Preços de referência: 25 (≈ 1 dia), 100 (≈ 3 dias), 250 (≈ 7 dias).
 
 ## 🛠️ Stack
 

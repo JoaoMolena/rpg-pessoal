@@ -3,7 +3,14 @@ import type { Completion, QuestCategory } from '../../types';
 import { attributeXp, deriveAttributes } from '../attributes';
 
 function completion(category: QuestCategory, xp: number, id = `c-${category}-${xp}`): Completion {
-  return { id, questId: `q-${id}`, xp, at: '2026-06-01T12:00:00.000Z', category };
+  return {
+    id,
+    questId: `q-${id}`,
+    xp,
+    at: '2026-06-01T12:00:00.000Z',
+    category,
+    gold: Math.round(xp / 5),
+  };
 }
 
 describe('attributeXp', () => {

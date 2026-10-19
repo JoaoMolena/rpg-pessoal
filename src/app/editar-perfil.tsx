@@ -30,7 +30,7 @@ export default function EditProfileScreen() {
   const handleReset = async () => {
     const confirmed = await confirm({
       title: 'Zerar progresso',
-      message: 'Todo o seu XP, nível, sequência e missões serão perdidos. Essa ação não pode ser desfeita.',
+      message: 'Todo o seu XP, nível, sequência, ouro e missões serão perdidos. Essa ação não pode ser desfeita.',
       confirmLabel: 'Zerar tudo',
       destructive: true,
     });
@@ -95,6 +95,13 @@ export default function EditProfileScreen() {
         </View>
 
         <PrimaryButton label="Salvar" icon="content-save-outline" onPress={handleSave} />
+
+        <PrimaryButton
+          label="Loja de recompensas"
+          icon="gift-outline"
+          variant="ghost"
+          onPress={() => router.push('/loja')}
+        />
 
         <PrimaryButton
           label="Lembretes e avisos"

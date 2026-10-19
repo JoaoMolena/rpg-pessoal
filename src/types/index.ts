@@ -10,7 +10,7 @@ export type QuestCategory =
 export type QuestDifficulty = 'facil' | 'media' | 'dificil' | 'epica';
 
 /** Versão atual do formato de dados persistido. */
-export const SCHEMA_VERSION = 5;
+export const SCHEMA_VERSION = 6;
 
 /** Dia da semana: 0 = domingo ... 6 = sábado (mesma convenção de `Date.getDay()`). */
 export type Weekday = 0 | 1 | 2 | 3 | 4 | 5 | 6;
@@ -54,6 +54,45 @@ export interface Completion {
   at: string;
   /** Categoria da missão no momento da conclusão (define o atributo). */
   category: QuestCategory;
+  /**
+   * Ouro creditado no momento da conclusão (congelado, como o `xp`).
+   * Fica gravado para que mudar a taxa de conversão no futuro não reprecifique
+   * o histórico — a lição do bug #1.
+   */
+  gold: number;
+}
+
+/** Recompensa personalizada criada pelo jogador e vendida na loja. */
+export interface Reward {
+  id: string;
+  title: string;
+  description?: string;
+  /** Preço em ouro (sempre positivo). */
+  cost: number;
+}
+
+/** Dados do formulário de uma recompensa. */
+export interface RewardInput {
+  title: string;
+  description?: string;
+  cost: number;
+}
+
+/**
+ * Registro imutável de um resgate.
+ *
+ * `title` e `cost` são **snapshots**: editar ou excluir a recompensa depois não
+ * reescreve o histórico nem devolve o ouro gasto.
+ */
+export interface Purchase {
+  id: string;
+  rewardId: string;
+  /** Título da recompensa no momento do resgate. */
+  title: string;
+  /** Ouro pago no momento do resgate. */
+  cost: number;
+  /** Data/hora (ISO 8601) do resgate. */
+  at: string;
 }
 
 /**
@@ -116,6 +155,10 @@ export interface AppState {
   templates: QuestTemplate[];
   /** Preferências de notificações locais. */
   notifications: NotificationSettings;
+  /** Recompensas personalizadas à venda na loja. */
+  rewards: Reward[];
+  /** Histórico de resgates (fonte de verdade do ouro gasto). */
+  purchases: Purchase[];
 }
 
 /**
@@ -155,6 +198,12 @@ export interface GameStats {
   level: number;
   /** Atributos por categoria (sempre as 7 chaves, mesmo zeradas). */
   attributes: Record<QuestCategory, AttributeStats>;
+  /** Ouro disponível para gastar (ganho − gasto, nunca negativo). */
+  gold: number;
+  /** Ouro total já conquistado em missões. */
+  goldEarned: number;
+  /** Ouro total já gasto em resgates. */
+  goldSpent: number;
 }
 
 export interface QuestInput {
