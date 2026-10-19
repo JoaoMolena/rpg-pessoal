@@ -31,6 +31,7 @@ function quest(id: string): Quest {
     xpReward: 25,
     date: '2026-06-01',
     completed: false,
+    subtasks: [],
   };
 }
 

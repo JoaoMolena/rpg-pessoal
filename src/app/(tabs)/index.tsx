@@ -26,6 +26,7 @@ export default function DashboardScreen() {
     todayQuests,
     overdueQuests,
     toggleQuest,
+    toggleSubtask,
     deleteQuest,
   } = useGame();
   const confirm = useConfirm();
@@ -173,6 +174,7 @@ export default function DashboardScreen() {
                 key={quest.id}
                 quest={quest}
                 onToggle={toggleQuest}
+                onToggleSubtask={toggleSubtask}
                 onPress={(q) => openEditor(q.id)}
                 onDelete={(q) => confirmDelete(q.title, q.id)}
               />
@@ -195,6 +197,7 @@ export default function DashboardScreen() {
                   key={quest.id}
                   quest={quest}
                   onToggle={toggleQuest}
+                  onToggleSubtask={toggleSubtask}
                   onPress={(q) => openEditor(q.id)}
                   onDelete={(q) => confirmDelete(q.title, q.id)}
                 />

@@ -67,6 +67,7 @@ export function questFromTemplate(template: QuestTemplate, id: string, date: str
     date,
     completed: false,
     templateId: template.id,
+    subtasks: [],
   };
 }
 

@@ -113,6 +113,7 @@ describe('bug #10 - migração e validação do estado salvo', () => {
           completed: true,
           completedAt: '2026-06-01T08:00:00.000Z',
           templateId: 't1',
+          subtasks: [],
         },
       ],
       completions: [
@@ -353,6 +354,53 @@ describe('bug #10 - migração e validação do estado salvo', () => {
 
     expect(migrated.purchases[0].kind).toBe('shield');
     expect(deriveStats(migrated, '2026-06-02').shieldsOwned).toBe(1);
+  });
+
+  it('dá subtarefas vazias às missões antigas (v7 → v8)', () => {
+    const v7 = {
+      schemaVersion: 7,
+      quests: [
+        {
+          id: 'q1',
+          title: 'Estudar',
+          category: 'estudo',
+          difficulty: 'epica',
+          xpReward: 100,
+          date: '2026-06-01',
+          completed: false,
+        },
+      ],
+      completions: [],
+    };
+
+    const migrated = migrateState(v7)!;
+
+    expect(migrated.quests[0].subtasks).toEqual([]);
+    expect(migrated.schemaVersion).toBe(SCHEMA_VERSION);
+  });
+
+  it('normaliza as subtarefas: descarta vazias e completa o id ausente', () => {
+    const migrated = migrateState({
+      schemaVersion: SCHEMA_VERSION,
+      quests: [
+        {
+          id: 'q1',
+          title: 'Estudar',
+          difficulty: 'epica',
+          subtasks: [
+            { id: 's1', title: '  Ler o capítulo  ', done: true },
+            { title: 'Fazer resumo' }, // sem id e sem done
+            { title: '   ' }, // sem título
+            'lixo',
+          ],
+        },
+      ],
+    })!;
+
+    expect(migrated.quests[0].subtasks).toEqual([
+      { id: 's1', title: 'Ler o capítulo', done: true },
+      { id: 'sub-1', title: 'Fazer resumo', done: false },
+    ]);
   });
 
   it('retorna null para dados irrecuperáveis', () => {

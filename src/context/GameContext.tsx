@@ -13,12 +13,14 @@ import { buildQuest, buildReward, buildShieldPurchase, createInitialState, reduc
 import { buildTemplate, planGeneration } from '../domain/recurrence';
 import { goldFromXp } from '../domain/economy';
 import { SHIELD_COST, SHIELD_MAX } from '../domain/shield';
+import { allSubtasksDone, reconcileSubtasks } from '../domain/subtasks';
 import { streakBonusXp } from '../domain/streak';
 import { deriveStats, streakAfterCompletion } from '../domain/stats';
 import { useToday } from '../hooks/useToday';
 import { clearState, loadState, saveState } from '../storage/storage';
 import type {
   AppState,
+  Completion,
   GameStats,
   NotificationSettings,
   Purchase,
@@ -28,6 +30,7 @@ import type {
   QuestTemplateInput,
   Reward,
   RewardInput,
+  Subtask,
 } from '../types';
 import { dateKey } from '../utils/dates';
 import { createId } from '../utils/id';
@@ -75,6 +78,10 @@ export interface GameContextValue {
   addQuest: (input: QuestInput) => void;
   updateQuest: (id: string, input: QuestInput) => void;
   toggleQuest: (id: string) => void;
+  /** Marca/desmarca um passo de uma missão épica (fecha a missão no último). */
+  toggleSubtask: (questId: string, subtaskId: string) => void;
+  /** Marca/desmarca **todos** os passos (atalho do checkbox principal). */
+  setAllSubtasks: (questId: string, done: boolean) => void;
   deleteQuest: (id: string) => void;
   addTemplate: (input: QuestTemplateInput) => void;
   updateTemplate: (id: string, input: QuestTemplateInput) => void;
@@ -164,38 +171,125 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     dispatch({ type: 'ADD_QUEST', quest: buildQuest(input, createId(), dateKey()) });
   }, []);
 
-  const updateQuest = useCallback((id: string, input: QuestInput) => {
-    dispatch({ type: 'UPDATE_QUEST', id, input });
-  }, []);
+  const updateQuest = useCallback(
+    (id: string, input: QuestInput) => {
+      // Reconcilia os passos pelo título para não perder o progresso dos que
+      // continuam iguais. O log de conclusões não é tocado por uma edição.
+      const existing = state.quests.find((item) => item.id === id)?.subtasks ?? [];
+      dispatch({
+        type: 'UPDATE_QUEST',
+        id,
+        input,
+        subtasks: reconcileSubtasks(input.subtasks ?? [], existing, createId),
+      });
+    },
+    [state.quests]
+  );
+
+  /**
+   * Conclusão de uma missão com XP, ouro e bônus **congelados agora**.
+   * O bônus de sequência vale a sequência que o jogador passa a ter hoje.
+   */
+  const buildCompletion = useCallback(
+    (quest: Quest): Completion => {
+      const bonusXp = streakBonusXp(quest.xpReward, streakAfterCompletion(state, today));
+      return {
+        id: createId(),
+        questId: quest.id,
+        xp: quest.xpReward + bonusXp,
+        at: new Date().toISOString(),
+        category: quest.category,
+        gold: goldFromXp(quest.xpReward),
+        bonusXp,
+      };
+    },
+    [state, today]
+  );
+
+  /**
+   * Dispara a ação que mexe nas subtarefas e cuida do feedback: fechar a missão
+   * mostra o toast de conclusão; reabrir limpa o toast (como no desmarcar).
+   */
+  const dispatchSubtasks = useCallback(
+    (
+      quest: Quest,
+      nextSubtasks: Subtask[],
+      action:
+        | { type: 'TOGGLE_SUBTASK'; subtaskId: string }
+        | { type: 'SET_ALL_SUBTASKS'; done: boolean }
+    ) => {
+      const completion = buildCompletion(quest);
+      const willComplete = allSubtasksDone(nextSubtasks);
+
+      if (willComplete && !quest.completed) {
+        setCompletion({
+          questId: quest.id,
+          title: quest.title,
+          xp: completion.xp,
+          gold: completion.gold,
+          bonusXp: completion.bonusXp,
+        });
+      } else if (!willComplete && quest.completed) {
+        setCompletion(null);
+      }
+
+      dispatch({ ...action, id: quest.id, completion });
+    },
+    [buildCompletion]
+  );
+
+  const toggleSubtask = useCallback(
+    (questId: string, subtaskId: string) => {
+      const quest = state.quests.find((item) => item.id === questId);
+      if (!quest) return;
+      const subtasks = quest.subtasks.map((subtask) =>
+        subtask.id === subtaskId ? { ...subtask, done: !subtask.done } : subtask
+      );
+      dispatchSubtasks(quest, subtasks, { type: 'TOGGLE_SUBTASK', subtaskId });
+    },
+    [state.quests, dispatchSubtasks]
+  );
+
+  const setAllSubtasks = useCallback(
+    (questId: string, done: boolean) => {
+      const quest = state.quests.find((item) => item.id === questId);
+      if (!quest || quest.subtasks.length === 0) return;
+      dispatchSubtasks(
+        quest,
+        quest.subtasks.map((subtask) => ({ ...subtask, done })),
+        { type: 'SET_ALL_SUBTASKS', done }
+      );
+    },
+    [state.quests, dispatchSubtasks]
+  );
 
   const toggleQuest = useCallback(
     (id: string) => {
       const quest = state.quests.find((item) => item.id === id);
       if (!quest) return;
-      // O bônus de sequência vale a sequência que o jogador passa a ter hoje.
-      const bonusXp = streakBonusXp(quest.xpReward, streakAfterCompletion(state, today));
-      const xp = quest.xpReward + bonusXp;
-      // O bônus é XP (nível e atributos); o ouro segue o ritmo da dificuldade.
-      const gold = goldFromXp(quest.xpReward);
+
+      // Missão com passos: o checkbox principal marca/desmarca todos de uma vez.
+      if (quest.subtasks.length > 0) {
+        setAllSubtasks(id, !quest.completed);
+        return;
+      }
+
+      const completion = buildCompletion(quest);
       // Concluir mostra o feedback (`+XP` + "Desfazer"); desmarcar apenas limpa.
       setCompletion(
-        quest.completed ? null : { questId: id, title: quest.title, xp, gold, bonusXp }
+        quest.completed
+          ? null
+          : {
+              questId: id,
+              title: quest.title,
+              xp: completion.xp,
+              gold: completion.gold,
+              bonusXp: completion.bonusXp,
+            }
       );
-      dispatch({
-        type: 'TOGGLE_QUEST',
-        id,
-        completion: {
-          id: createId(),
-          questId: id,
-          xp,
-          at: new Date().toISOString(),
-          category: quest.category,
-          gold,
-          bonusXp,
-        },
-      });
+      dispatch({ type: 'TOGGLE_QUEST', id, completion });
     },
-    [state, today]
+    [state.quests, buildCompletion, setAllSubtasks]
   );
 
   const dismissCompletion = useCallback(() => setCompletion(null), []);
@@ -315,6 +409,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       addQuest,
       updateQuest,
       toggleQuest,
+      toggleSubtask,
+      setAllSubtasks,
       deleteQuest,
       addTemplate,
       updateTemplate,
@@ -343,6 +439,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     addQuest,
     updateQuest,
     toggleQuest,
+    toggleSubtask,
+    setAllSubtasks,
     deleteQuest,
     addTemplate,
     updateTemplate,

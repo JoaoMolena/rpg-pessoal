@@ -22,6 +22,7 @@ function makeQuest(overrides: Partial<Quest> & Pick<Quest, 'id'>): Quest {
     xpReward: 25,
     date: '2026-06-01',
     completed: false,
+    subtasks: [],
     ...overrides,
   };
 }
@@ -71,6 +72,7 @@ describe('bug #1 - editar dificuldade de missão concluída não corrompe o XP',
       type: 'UPDATE_QUEST',
       id: 'q1',
       input: { title: 'Missão', category: 'outros', difficulty: 'facil' },
+      subtasks: [],
     });
     expect(state.quests[0].xpReward).toBe(10);
     expect(deriveStats(state, '2026-06-01').totalXp).toBe(100);

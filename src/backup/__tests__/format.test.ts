@@ -17,6 +17,7 @@ const state: AppState = {
       completed: true,
       completedAt: '2026-10-19T12:00:00.000Z',
       templateId: 't1',
+      subtasks: [],
     },
   ],
   completions: [{ id: 'c1', questId: 'q1', xp: 10, at: '2026-10-19T12:00:00.000Z', category: 'saude', gold: 2, bonusXp: 0 }],

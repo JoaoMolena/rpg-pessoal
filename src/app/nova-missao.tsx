@@ -2,12 +2,14 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { router, useLocalSearchParams, useNavigation } from 'expo-router';
 
 import { ChipSelector, type ChipOption } from '../components/ChipSelector';
@@ -21,6 +23,10 @@ import {
   colors,
 } from '../theme/game';
 import type { QuestCategory, QuestDifficulty } from '../types';
+import { createId } from '../utils/id';
+
+/** Teto de passos por missão (evita listas intermináveis no cartão). */
+const MAX_SUBTASKS = 12;
 
 export default function NewMissionScreen() {
   const navigation = useNavigation();
@@ -36,6 +42,10 @@ export default function NewMissionScreen() {
   const [description, setDescription] = useState(editing?.description ?? '');
   const [category, setCategory] = useState<QuestCategory>(editing?.category ?? 'outros');
   const [difficulty, setDifficulty] = useState<QuestDifficulty>(editing?.difficulty ?? 'media');
+  // Os passos são editados por título; o `id` local serve só de chave estável.
+  const [subtasks, setSubtasks] = useState<{ id: string; title: string }[]>(() =>
+    (editing?.subtasks ?? []).map((subtask) => ({ id: subtask.id, title: subtask.title }))
+  );
 
   useEffect(() => {
     navigation.setOptions({ title: editing ? 'Editar Missão' : 'Nova Missão' });
@@ -57,9 +67,25 @@ export default function NewMissionScreen() {
 
   const canSave = title.trim().length > 0;
 
+  const addSubtask = () => setSubtasks((current) => [...current, { id: createId(), title: '' }]);
+
+  const updateSubtask = (id: string, value: string) =>
+    setSubtasks((current) =>
+      current.map((subtask) => (subtask.id === id ? { ...subtask, title: value } : subtask))
+    );
+
+  const removeSubtask = (id: string) =>
+    setSubtasks((current) => current.filter((subtask) => subtask.id !== id));
+
   const handleSave = () => {
     if (!canSave) return;
-    const input = { title, description, category, difficulty };
+    const input = {
+      title,
+      description,
+      category,
+      difficulty,
+      subtasks: subtasks.map((subtask) => subtask.title),
+    };
     if (editing) updateQuest(editing.id, input);
     else addQuest(input);
     router.back();
@@ -123,13 +149,55 @@ export default function NewMissionScreen() {
           </View>
         </View>
 
+        <View style={styles.field}>
+          <Text style={styles.label}>Subtarefas (opcional)</Text>
+          <Text style={styles.subHint}>
+            Divida missões épicas em passos. A missão só conclui quando todos estiverem prontos.
+          </Text>
+          {subtasks.map((subtask, index) => (
+            <View key={subtask.id} style={styles.subtaskRow}>
+              <TextInput
+                value={subtask.title}
+                onChangeText={(value) => updateSubtask(subtask.id, value)}
+                placeholder={`Passo ${index + 1}`}
+                placeholderTextColor={colors.textMuted}
+                style={[styles.input, styles.subtaskInput]}
+                maxLength={80}
+                returnKeyType="done"
+              />
+              <Pressable
+                onPress={() => removeSubtask(subtask.id)}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel={`Remover ${subtask.title || `passo ${index + 1}`}`}
+                style={styles.subtaskRemove}
+              >
+                <MaterialCommunityIcons
+                  name="close-circle-outline"
+                  size={22}
+                  color={colors.textMuted}
+                />
+              </Pressable>
+            </View>
+          ))}
+          <PrimaryButton
+            label="Adicionar passo"
+            icon="plus"
+            variant="ghost"
+            onPress={addSubtask}
+            disabled={subtasks.length >= MAX_SUBTASKS}
+          />
+          {subtasks.length >= MAX_SUBTASKS && (
+            <Text style={styles.hint}>Limite de {MAX_SUBTASKS} passos por missão.</Text>
+          )}
+        </View>
+
         <PrimaryButton
           label={editing ? 'Salvar alterações' : 'Criar missão'}
           icon={editing ? 'content-save-outline' : 'plus'}
           onPress={handleSave}
           disabled={!canSave}
-        />
-        {!canSave && <Text style={styles.hint}>Preencha o título para salvar.</Text>}
+        />        {!canSave && <Text style={styles.hint}>Preencha o título para salvar.</Text>}
 
         {editing && (
           <PrimaryButton label="Excluir missão" icon="trash-can-outline" variant="danger" onPress={handleDelete} />
@@ -170,6 +238,23 @@ const styles = StyleSheet.create({
   inputMultiline: {
     minHeight: 88,
     textAlignVertical: 'top',
+  },
+  subHint: {
+    color: colors.textMuted,
+    fontSize: 12.5,
+    lineHeight: 18,
+  },
+  subtaskRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  subtaskInput: {
+    flex: 1,
+    paddingVertical: 11,
+  },
+  subtaskRemove: {
+    padding: 2,
   },
   rewardBox: {
     backgroundColor: `${colors.warning}14`,

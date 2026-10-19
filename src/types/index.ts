@@ -10,7 +10,7 @@ export type QuestCategory =
 export type QuestDifficulty = 'facil' | 'media' | 'dificil' | 'epica';
 
 /** Versão atual do formato de dados persistido. */
-export const SCHEMA_VERSION = 7;
+export const SCHEMA_VERSION = 8;
 
 /** Dia da semana: 0 = domingo ... 6 = sábado (mesma convenção de `Date.getDay()`). */
 export type Weekday = 0 | 1 | 2 | 3 | 4 | 5 | 6;
@@ -20,6 +20,19 @@ export type Recurrence =
   | { kind: 'daily' }
   | { kind: 'weekdays'; days: Weekday[] }
   | { kind: 'weekly'; weekday: Weekday };
+
+/**
+ * Passo de uma missão épica.
+ *
+ * É estrutura, não pontuação: concluir subtarefas **não** credita XP parcial. A
+ * missão (com o XP congelado de sempre) só é concluída quando **todas** estão
+ * marcadas — assim o log de conclusões continua com uma entrada por missão.
+ */
+export interface Subtask {
+  id: string;
+  title: string;
+  done: boolean;
+}
 
 export interface Quest {
   id: string;
@@ -36,6 +49,8 @@ export interface Quest {
   completedAt?: string;
   /** Se a missão foi gerada por um modelo recorrente, o id desse modelo. */
   templateId?: string;
+  /** Passos da missão épica (vazio quando a missão não tem subtarefas). */
+  subtasks: Subtask[];
 }
 
 /**
@@ -240,6 +255,8 @@ export interface QuestInput {
   description?: string;
   category: QuestCategory;
   difficulty: QuestDifficulty;
+  /** Títulos dos passos. Na edição, `[]` remove todas as subtarefas. */
+  subtasks?: string[];
 }
 
 /** Dados do formulário de uma missão recorrente. */
