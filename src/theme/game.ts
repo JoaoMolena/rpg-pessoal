@@ -2,8 +2,7 @@ import type { ComponentProps } from 'react';
 
 import type MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 
-import type { AppState, QuestCategory, QuestDifficulty } from '../types';
-import { levelFromXp } from '../utils/level';
+import type { GameStats, QuestCategory, QuestDifficulty } from '../types';
 
 type IconName = ComponentProps<typeof MaterialCommunityIcons>['name'];
 
@@ -75,7 +74,8 @@ export interface Achievement {
   title: string;
   description: string;
   icon: IconName;
-  check: (state: AppState) => boolean;
+  /** Recebe as estatísticas **derivadas** (não o estado persistido). */
+  check: (stats: GameStats) => boolean;
 }
 
 /** Conquistas desbloqueáveis exibidas na tela de Progresso. */
@@ -85,42 +85,42 @@ export const ACHIEVEMENTS: Achievement[] = [
     title: 'Primeiro Passo',
     description: 'Conclua sua primeira missão',
     icon: 'shoe-print',
-    check: (s) => s.stats.completedQuests >= 1,
+    check: (s) => s.completedQuests >= 1,
   },
   {
     id: 'dez-missoes',
     title: 'Em Ritmo de Combate',
     description: 'Conclua 10 missões no total',
     icon: 'sword-cross',
-    check: (s) => s.stats.completedQuests >= 10,
+    check: (s) => s.completedQuests >= 10,
   },
   {
     id: 'sequencia-3',
     title: 'Constância',
     description: 'Mantenha 3 dias seguidos de progresso',
     icon: 'fire',
-    check: (s) => s.stats.longestStreak >= 3,
+    check: (s) => s.longestStreak >= 3,
   },
   {
     id: 'sequencia-7',
     title: 'Semana Perfeita',
     description: 'Mantenha 7 dias seguidos de progresso',
     icon: 'trophy',
-    check: (s) => s.stats.longestStreak >= 7,
+    check: (s) => s.longestStreak >= 7,
   },
   {
     id: 'nivel-5',
     title: 'Ascensão',
     description: 'Alcance o nível 5',
     icon: 'chevron-double-up',
-    check: (s) => levelFromXp(s.stats.totalXp) >= 5,
+    check: (s) => s.level >= 5,
   },
   {
     id: 'nivel-10',
     title: 'Lenda Urbana',
     description: 'Alcance o nível 10',
     icon: 'crown',
-    check: (s) => levelFromXp(s.stats.totalXp) >= 10,
+    check: (s) => s.level >= 10,
   },
 ];
 

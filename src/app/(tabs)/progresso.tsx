@@ -5,28 +5,29 @@ import { EmptyState } from '../../components/EmptyState';
 import { StatCard } from '../../components/StatCard';
 import { XPBar } from '../../components/XPBar';
 import { useGame } from '../../context/GameContext';
+import { completionsByCategory } from '../../domain/stats';
 import { ACHIEVEMENTS, CATEGORIES, CATEGORY_KEYS, cardShadow, colors } from '../../theme/game';
-import type { QuestCategory } from '../../types';
+import type { Quest, QuestCategory } from '../../types';
 import { formatShortDate } from '../../utils/dates';
 
 export default function ProgressScreen() {
-  const { state, levelInfo } = useGame();
+  const { state, stats, levelInfo } = useGame();
 
-  const unlocked = ACHIEVEMENTS.filter((a) => a.check(state));
+  const unlocked = ACHIEVEMENTS.filter((a) => a.check(stats));
 
   // Missões concluídas por categoria.
-  const completedByCategory = state.quests
-    .filter((q) => q.completed)
-    .reduce<Record<string, number>>((acc, q) => {
-      acc[q.category] = (acc[q.category] ?? 0) + 1;
-      return acc;
-    }, {});
+  const completedByCategory = completionsByCategory(state.quests);
   const maxCategoryCount = Math.max(1, ...Object.values(completedByCategory));
 
-  const history = state.quests
-    .filter((q) => q.completed && q.completedAt)
-    .sort((a, b) => (b.completedAt ?? '').localeCompare(a.completedAt ?? ''))
-    .slice(0, 10);
+  // Histórico derivado do log de conclusões (o XP exibido é o creditado na hora).
+  const questById = new Map(state.quests.map((quest) => [quest.id, quest]));
+  const history = [...state.completions]
+    .sort((a, b) => b.at.localeCompare(a.at))
+    .slice(0, 10)
+    .flatMap((completion) => {
+      const quest = questById.get(completion.questId);
+      return quest ? [{ completion, quest: quest as Quest }] : [];
+    });
 
   return (
     <ScrollView
@@ -58,13 +59,13 @@ export default function ProgressScreen() {
       <View style={styles.statsGrid}>
         <StatCard
           icon="lightning-bolt"
-          value={String(state.stats.totalXp)}
+          value={String(stats.totalXp)}
           label="XP Total"
           accent={colors.warning}
         />
         <StatCard
           icon="check-decagram"
-          value={String(state.stats.completedQuests)}
+          value={String(stats.completedQuests)}
           label="Missões"
           accent={colors.success}
         />
@@ -72,13 +73,13 @@ export default function ProgressScreen() {
       <View style={styles.statsGrid}>
         <StatCard
           icon="fire"
-          value={`${state.stats.currentStreak}d`}
+          value={`${stats.currentStreak}d`}
           label="Sequência"
           accent={colors.danger}
         />
         <StatCard
           icon="medal"
-          value={`${state.stats.longestStreak}d`}
+          value={`${stats.longestStreak}d`}
           label="Recorde"
           accent={colors.primary}
         />
@@ -90,7 +91,7 @@ export default function ProgressScreen() {
       </Text>
       <View style={styles.achievementList}>
         {ACHIEVEMENTS.map((achievement) => {
-          const isUnlocked = achievement.check(state);
+          const isUnlocked = achievement.check(stats);
           return (
             <View
               key={achievement.id}
@@ -168,8 +169,8 @@ export default function ProgressScreen() {
         />
       ) : (
         <View style={styles.historyList}>
-          {history.map((quest) => (
-            <View key={quest.id} style={styles.historyRow}>
+          {history.map(({ completion, quest }) => (
+            <View key={completion.id} style={styles.historyRow}>
               <MaterialCommunityIcons
                 name={CATEGORIES[quest.category].icon}
                 size={16}
@@ -178,10 +179,8 @@ export default function ProgressScreen() {
               <Text style={styles.historyTitle} numberOfLines={1}>
                 {quest.title}
               </Text>
-              <Text style={styles.historyDate}>
-                {quest.completedAt ? formatShortDate(quest.completedAt) : ''}
-              </Text>
-              <Text style={styles.historyXp}>+{quest.xpReward}</Text>
+              <Text style={styles.historyDate}>{formatShortDate(completion.at)}</Text>
+              <Text style={styles.historyXp}>+{completion.xp}</Text>
             </View>
           ))}
         </View>

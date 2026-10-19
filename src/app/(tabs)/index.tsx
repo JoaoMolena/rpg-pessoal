@@ -1,5 +1,4 @@
 import {
-  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -14,6 +13,7 @@ import { EmptyState } from '../../components/EmptyState';
 import { QuestCard } from '../../components/QuestCard';
 import { StatCard } from '../../components/StatCard';
 import { XPBar } from '../../components/XPBar';
+import { useConfirm } from '../../components/ConfirmDialog';
 import { useGame } from '../../context/GameContext';
 import { cardShadow, colors, gradients } from '../../theme/game';
 import { getGreeting, getLongDate } from '../../utils/dates';
@@ -21,13 +21,14 @@ import { getGreeting, getLongDate } from '../../utils/dates';
 export default function DashboardScreen() {
   const {
     state,
+    stats,
     levelInfo,
     todayQuests,
     overdueQuests,
-    xpToday,
     toggleQuest,
     deleteQuest,
   } = useGame();
+  const confirm = useConfirm();
 
   const completedToday = todayQuests.filter((q) => q.completed).length;
   const pendingToday = todayQuests.filter((q) => !q.completed);
@@ -35,11 +36,15 @@ export default function DashboardScreen() {
   const openEditor = (id: string) =>
     router.push({ pathname: '/nova-missao', params: { id } });
 
-  const confirmDelete = (title: string, id: string) =>
-    Alert.alert('Excluir missão', `Deseja excluir "${title}"?`, [
-      { text: 'Cancelar', style: 'cancel' },
-      { text: 'Excluir', style: 'destructive', onPress: () => deleteQuest(id) },
-    ]);
+  const confirmDelete = async (title: string, id: string) => {
+    const confirmed = await confirm({
+      title: 'Excluir missão',
+      message: `Deseja excluir "${title}"?`,
+      confirmLabel: 'Excluir',
+      destructive: true,
+    });
+    if (confirmed) deleteQuest(id);
+  };
 
   return (
     <View style={styles.container}>
@@ -74,7 +79,7 @@ export default function DashboardScreen() {
             </View>
             <View style={styles.streak}>
               <MaterialCommunityIcons name="fire" size={16} color={colors.bgDeep} />
-              <Text style={styles.streakText}>{state.stats.currentStreak}</Text>
+              <Text style={styles.streakText}>{stats.currentStreak}</Text>
             </View>
           </View>
 
@@ -89,7 +94,7 @@ export default function DashboardScreen() {
               <Text style={styles.xpText}>
                 {levelInfo.progressIntoLevel} / {levelInfo.levelRange} XP
               </Text>
-              <Text style={styles.xpText}>Faltam {Math.max(0, levelInfo.nextLevelXp - state.stats.totalXp)} XP</Text>
+              <Text style={styles.xpText}>Faltam {Math.max(0, levelInfo.nextLevelXp - stats.totalXp)} XP</Text>
             </View>
           </View>
         </LinearGradient>
@@ -98,19 +103,19 @@ export default function DashboardScreen() {
         <View style={styles.statsRow}>
           <StatCard
             icon="lightning-bolt"
-            value={String(state.stats.totalXp)}
+            value={String(stats.totalXp)}
             label="XP Total"
             accent={colors.warning}
           />
           <StatCard
             icon="check-decagram"
-            value={String(state.stats.completedQuests)}
+            value={String(stats.completedQuests)}
             label="Concluídas"
             accent={colors.success}
           />
           <StatCard
             icon="lightning-bolt-outline"
-            value={String(xpToday)}
+            value={String(stats.xpToday)}
             label="XP Hoje"
             accent={colors.accent}
           />

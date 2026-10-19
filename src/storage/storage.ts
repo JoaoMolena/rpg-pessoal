@@ -1,19 +1,20 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import type { AppState } from '../types';
+import { migrateState } from './migrations';
 
+// A chave permanece a mesma da v1 de propósito: é por ela que o estado antigo
+// é encontrado e migrado para a v2.
 const STORAGE_KEY = '@rpg-pessoal/state/v1';
 
-/** Carrega o estado salvo do dispositivo (ou null na primeira execução). */
+/** Carrega, valida e migra o estado salvo (ou null na primeira execução). */
 export async function loadState(): Promise<AppState | null> {
   try {
     const raw = await AsyncStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as AppState;
-    if (!Array.isArray(parsed?.quests)) return null; // dados corrompidos ou formato incompatível
-    return parsed;
+    return migrateState(JSON.parse(raw));
   } catch {
-    return null;
+    return null; // JSON inválido, storage corrompido ou versão desconhecida
   }
 }
 

@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import {
-  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -12,12 +11,14 @@ import {
 } from 'react-native';
 import { router } from 'expo-router';
 
+import { useConfirm } from '../components/ConfirmDialog';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { useGame } from '../context/GameContext';
 import { AVATARS, colors } from '../theme/game';
 
 export default function EditProfileScreen() {
-  const { state, levelInfo, setPlayer, resetProgress } = useGame();
+  const { state, stats, levelInfo, setPlayer, resetProgress } = useGame();
+  const confirm = useConfirm();
   const [name, setName] = useState(state.playerName);
   const [avatar, setAvatar] = useState(state.playerAvatar);
 
@@ -26,22 +27,17 @@ export default function EditProfileScreen() {
     router.back();
   };
 
-  const handleReset = () => {
-    Alert.alert(
-      'Zerar progresso',
-      'Todo o seu XP, nível, sequência e missões serão perdidos. Essa ação não pode ser desfeita.',
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Zerar tudo',
-          style: 'destructive',
-          onPress: () => {
-            resetProgress();
-            router.back();
-          },
-        },
-      ]
-    );
+  const handleReset = async () => {
+    const confirmed = await confirm({
+      title: 'Zerar progresso',
+      message: 'Todo o seu XP, nível, sequência e missões serão perdidos. Essa ação não pode ser desfeita.',
+      confirmLabel: 'Zerar tudo',
+      destructive: true,
+    });
+    if (confirmed) {
+      resetProgress();
+      router.back();
+    }
   };
 
   return (
@@ -61,7 +57,7 @@ export default function EditProfileScreen() {
           </View>
           <Text style={styles.previewName}>{name.trim() || 'Sem nome'}</Text>
           <Text style={styles.previewRank}>
-            Nível {levelInfo.level} · {levelInfo.rank} · {state.stats.totalXp} XP
+            Nível {levelInfo.level} · {levelInfo.rank} · {stats.totalXp} XP
           </Text>
         </View>
 

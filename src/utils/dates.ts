@@ -6,13 +6,21 @@ export function dateKey(date: Date = new Date()): string {
   return `${year}-${month}-${day}`;
 }
 
-/** Verifica se a chave informada corresponde ao dia anterior ao dia de referência. */
-export function isYesterday(key: string | undefined, today = dateKey()): boolean {
-  if (!key) return false;
-  const [y, m, d] = today.split('-').map(Number);
-  const yesterday = new Date(y, m - 1, d);
-  yesterday.setDate(yesterday.getDate() - 1);
-  return key === dateKey(yesterday);
+/** Chave de data local a partir de um timestamp ISO 8601. */
+export function dateKeyFromIso(iso: string): string {
+  return dateKey(new Date(iso));
+}
+
+/**
+ * Soma dias a uma chave YYYY-MM-DD usando aritmética de **calendário**
+ * (`Date.setDate`), nunca por milissegundos — por isso é seguro em transições
+ * de horário de verão, quando um dia pode ter 23h ou 25h.
+ */
+export function addDaysToKey(key: string, days: number): string {
+  const [year, month, day] = key.split('-').map(Number);
+  const date = new Date(year, month - 1, day);
+  date.setDate(date.getDate() + days);
+  return dateKey(date);
 }
 
 /** Formata uma data ISO para DD/MM. */
