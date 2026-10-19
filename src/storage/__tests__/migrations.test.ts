@@ -156,6 +156,7 @@ describe('bug #10 - migração e validação do estado salvo', () => {
           at: '2026-06-02T18:00:00.000Z',
         },
       ],
+      seenAchievements: ['primeira-missao', 'recompensa-merecida'],
     };
 
     expect(migrateState(current)).toEqual(current);
@@ -409,5 +410,49 @@ describe('bug #10 - migração e validação do estado salvo', () => {
     expect(migrateState({ quests: 'não é lista' })).toBeNull();
     // Estado gravado por um app mais novo: melhor começar do zero do que arriscar.
     expect(migrateState({ schemaVersion: 99, quests: [] })).toBeNull();
+  });
+
+  it('marca as conquistas já desbloqueadas como vistas (v8 → v9)', () => {
+    const v8 = {
+      schemaVersion: 8,
+      quests: [],
+      completions: [
+        {
+          id: 'c1',
+          questId: 'q1',
+          xp: 25,
+          at: '2026-06-01T10:00:00.000Z',
+          category: 'saude',
+          gold: 5,
+          bonusXp: 0,
+        },
+      ],
+      purchases: [
+        {
+          id: 'p1',
+          kind: 'reward',
+          rewardId: 'r1',
+          title: 'Café especial',
+          cost: 25,
+          at: '2026-06-02T18:00:00.000Z',
+        },
+      ],
+    };
+
+    const migrated = migrateState(v8)!;
+
+    // Quem já jogou não leva uma chuva de toasts no primeiro boot da v9.
+    expect(migrated.seenAchievements).toEqual(['primeira-missao', 'recompensa-merecida']);
+  });
+
+  it('preserva as conquistas vistas já gravadas', () => {
+    const migrated = migrateState({
+      schemaVersion: SCHEMA_VERSION,
+      quests: [],
+      completions: [],
+      seenAchievements: ['primeira-missao', 42, null, 'lixo'],
+    })!;
+
+    expect(migrated.seenAchievements).toEqual(['primeira-missao', 'lixo']);
   });
 });

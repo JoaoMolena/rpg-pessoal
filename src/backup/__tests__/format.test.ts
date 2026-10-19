@@ -41,6 +41,7 @@ const state: AppState = {
   },
   rewards: [],
   purchases: [],
+  seenAchievements: [],
 };
 
 describe('serializeBackup', () => {
