@@ -10,7 +10,8 @@ import {
 } from '../../types';
 import { didLevelUp } from '../../utils/level';
 import { goldBalance, goldFromXp } from '../economy';
-import { buildReward, reducer } from '../reducer';
+import { buildReward, buildShieldPurchase, reducer } from '../reducer';
+import { SHIELD_COST, SHIELD_MAX } from '../shield';
 import { deriveStats } from '../stats';
 
 function makeQuest(overrides: Partial<Quest> & Pick<Quest, 'id'>): Quest {
@@ -51,6 +52,7 @@ function toggle(state: AppState, id: string, at: string): AppState {
     at,
     category: quest.category,
     gold: goldFromXp(quest.xpReward),
+    bonusXp: 0,
   };
   return reducer(state, { type: 'TOGGLE_QUEST', id, completion });
 }
@@ -230,6 +232,7 @@ describe('loja de recompensas (ouro)', () => {
       at: DAY,
       category: 'saude',
       gold: goldFromXp(xp),
+      bonusXp: 0,
     };
   }
 
@@ -273,11 +276,12 @@ describe('loja de recompensas (ouro)', () => {
     let state = makeState([], [earned(100)]);
     state = reducer(state, {
       type: 'REDEEM_REWARD',
-      purchase: { id: 'p1', rewardId: 'r1', title: 'Café especial', cost: 20, at: DAY },
+      purchase: { id: 'p1', kind: 'reward', rewardId: 'r1', title: 'Café especial', cost: 20, at: DAY },
     });
 
     expect(state.purchases[0]).toEqual({
       id: 'p1',
+      kind: 'reward',
       rewardId: 'r1',
       title: 'Café especial',
       cost: 20,
@@ -290,7 +294,7 @@ describe('loja de recompensas (ouro)', () => {
     const state = makeState([], [earned(10)]); // 2 de ouro
     const next = reducer(state, {
       type: 'REDEEM_REWARD',
-      purchase: { id: 'p1', rewardId: 'r1', title: 'Café especial', cost: 25, at: DAY },
+      purchase: { id: 'p1', kind: 'reward', rewardId: 'r1', title: 'Café especial', cost: 25, at: DAY },
     });
 
     expect(next).toBe(state); // nada mudou
@@ -302,11 +306,105 @@ describe('loja de recompensas (ouro)', () => {
     state = reducer(state, { type: 'ADD_REWARD', reward });
     state = reducer(state, {
       type: 'REDEEM_REWARD',
-      purchase: { id: 'p1', rewardId: 'r1', title: 'Café especial', cost: 20, at: DAY },
+      purchase: { id: 'p1', kind: 'reward', rewardId: 'r1', title: 'Café especial', cost: 20, at: DAY },
     });
 
     const next = reducer(state, { type: 'DELETE_REWARD', id: 'r1' });
     expect(next.rewards).toHaveLength(0);
     expect(next.purchases).toHaveLength(1); // o ouro gasto continua registrado
+  });
+});
+
+describe('escudo de sequência (item c)', () => {
+  /** Conclusão com o ouro já coerente com o XP (como o provider monta). */
+  function earned(xp: number): Completion {
+    return {
+      id: `c-${xp}`,
+      questId: 'q1',
+      xp,
+      at: DAY,
+      category: 'saude',
+      gold: goldFromXp(xp),
+      bonusXp: 0,
+    };
+  }
+
+  const AT = '2026-06-02T12:00:00.000Z';
+
+  it('buildShieldPurchase monta o resgate com o preço fixo', () => {
+    expect(buildShieldPurchase('p1', AT)).toEqual({
+      id: 'p1',
+      kind: 'shield',
+      rewardId: 'escudo-de-sequencia',
+      title: 'Escudo de sequência',
+      cost: SHIELD_COST,
+      at: AT,
+    });
+  });
+
+  it('registra a compra quando há ouro', () => {
+    const state = makeState([], [earned(500)]); // 500 XP => 100 de ouro
+    const next = reducer(state, {
+      type: 'REDEEM_SHIELD',
+      purchase: buildShieldPurchase('p1', AT),
+      usedShields: 0,
+    });
+
+    expect(next.purchases).toHaveLength(1);
+    expect(next.purchases[0].kind).toBe('shield');
+    expect(goldBalance(next.completions, next.purchases)).toBe(0);
+  });
+
+  it('não compra sem ouro suficiente', () => {
+    const state = makeState([], [earned(100)]); // 20 de ouro
+    const next = reducer(state, {
+      type: 'REDEEM_SHIELD',
+      purchase: buildShieldPurchase('p1', AT),
+      usedShields: 0,
+    });
+
+    expect(next).toBe(state);
+    expect(next.purchases).toHaveLength(0);
+  });
+
+  it('não deixa a reserva passar do limite', () => {
+    let state = makeState([], [earned(2000)]); // 400 de ouro
+    for (let i = 0; i < SHIELD_MAX; i += 1) {
+      state = reducer(state, {
+        type: 'REDEEM_SHIELD',
+        purchase: buildShieldPurchase(`p${i}`, AT),
+        usedShields: 0,
+      });
+    }
+    expect(state.purchases).toHaveLength(SHIELD_MAX);
+
+    const next = reducer(state, {
+      type: 'REDEEM_SHIELD',
+      purchase: buildShieldPurchase('px', AT),
+      usedShields: 0,
+    });
+
+    expect(next).toBe(state);
+    expect(next.purchases).toHaveLength(SHIELD_MAX);
+  });
+
+  it('libera espaço quando um escudo já foi usado', () => {
+    let state = makeState([], [earned(2000)]);
+    for (let i = 0; i < SHIELD_MAX; i += 1) {
+      state = reducer(state, {
+        type: 'REDEEM_SHIELD',
+        purchase: buildShieldPurchase(`p${i}`, AT),
+        usedShields: 0,
+      });
+    }
+
+    // 3 comprados − 1 usado = 2 na reserva → cabe outro.
+    const next = reducer(state, {
+      type: 'REDEEM_SHIELD',
+      purchase: buildShieldPurchase('px', AT),
+      usedShields: 1,
+    });
+
+    expect(next.purchases).toHaveLength(SHIELD_MAX + 1);
   });
 });

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
@@ -9,6 +9,7 @@ import { EmptyState } from '../components/EmptyState';
 import { PrimaryButton } from '../components/PrimaryButton';
 import { RewardCard } from '../components/RewardCard';
 import { useGame } from '../context/GameContext';
+import { SHIELD_COST, SHIELD_MAX } from '../domain/shield';
 import { cardShadow, colors, gradients } from '../theme/game';
 import type { Reward } from '../types';
 import { formatShortDate } from '../utils/dates';
@@ -22,12 +23,35 @@ interface Status {
 }
 
 export default function ShopScreen() {
-  const { rewards, purchases, stats, redeemReward, deleteReward } = useGame();
+  const { rewards, purchases, stats, redeemReward, buyShield, deleteReward } = useGame();
   const confirm = useConfirm();
   const [status, setStatus] = useState<Status | null>(null);
 
   // Mais baratas primeiro: é o que dá para comprar hoje.
   const sortedRewards = [...rewards].sort((a, b) => a.cost - b.cost);
+
+  const shieldsFull = stats.shieldsAvailable >= SHIELD_MAX;
+  const canBuyShield = !shieldsFull && stats.gold >= SHIELD_COST;
+
+  const handleBuyShield = async () => {
+    const confirmed = await confirm({
+      title: 'Comprar escudo',
+      message: `Comprar um escudo de sequência por ${SHIELD_COST} de ouro?`,
+      confirmLabel: 'Comprar',
+    });
+    if (!confirmed) return;
+
+    if (buyShield()) {
+      setStatus({ kind: 'success', text: `Escudo comprado (−${SHIELD_COST} de ouro)` });
+    } else if (shieldsFull) {
+      setStatus({ kind: 'error', text: `Reserva cheia (${SHIELD_MAX} escudos).` });
+    } else {
+      setStatus({
+        kind: 'error',
+        text: `Ouro insuficiente. Faltam ${SHIELD_COST - stats.gold}.`,
+      });
+    }
+  };
 
   const handleRedeem = async (reward: Reward) => {
     const confirmed = await confirm({
@@ -120,6 +144,46 @@ export default function ShopScreen() {
         onPress={() => router.push('/nova-recompensa')}
       />
 
+      <Text style={styles.sectionTitle}>Escudo de sequência</Text>
+      <View style={[styles.shieldCard, cardShadow]}>
+        <View style={styles.shieldTop}>
+          <View style={styles.shieldIcon}>
+            <MaterialCommunityIcons name="shield-check" size={22} color={colors.accent} />
+          </View>
+          <View style={styles.shieldInfo}>
+            <Text style={styles.shieldTitle}>
+              {stats.shieldsAvailable} de {SHIELD_MAX} em reserva
+            </Text>
+            <Text style={styles.shieldDesc}>
+              Cobre um dia sem conclusão e mantém a sequência viva. Vale do dia da compra em diante.
+            </Text>
+          </View>
+        </View>
+        <View style={styles.shieldFooter}>
+          <Text style={styles.shieldMeta}>
+            {stats.shieldsOwned} comprados · {stats.shieldsUsed} usados
+          </Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityState={{ disabled: !canBuyShield }}
+            accessibilityLabel={`Comprar escudo de sequência por ${SHIELD_COST} de ouro`}
+            disabled={!canBuyShield}
+            onPress={handleBuyShield}
+            style={({ pressed }) => [
+              styles.shieldButton,
+              !canBuyShield && styles.shieldButtonDisabled,
+              pressed && styles.pressed,
+            ]}
+          >
+            <MaterialCommunityIcons name="circle-multiple" size={15} color={colors.bgDeep} />
+            <Text style={styles.shieldButtonText}>{SHIELD_COST}</Text>
+          </Pressable>
+        </View>
+        {shieldsFull && (
+          <Text style={styles.shieldFootnote}>Reserva cheia — use um escudo antes de comprar outro.</Text>
+        )}
+      </View>
+
       <Text style={styles.sectionTitle}>Recompensas</Text>
       {sortedRewards.length === 0 ? (
         <EmptyState
@@ -151,9 +215,9 @@ export default function ShopScreen() {
             {purchases.slice(0, HISTORY_LIMIT).map((purchase) => (
               <View key={purchase.id} style={styles.historyRow}>
                 <MaterialCommunityIcons
-                  name="check-circle-outline"
+                  name={purchase.kind === 'shield' ? 'shield-check' : 'check-circle-outline'}
                   size={16}
-                  color={colors.success}
+                  color={purchase.kind === 'shield' ? colors.accent : colors.success}
                 />
                 <Text style={styles.historyTitle} numberOfLines={1}>
                   {purchase.title}
@@ -217,6 +281,77 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     fontSize: 13.5,
     lineHeight: 20,
+  },
+  shieldCard: {
+    backgroundColor: colors.surface,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 14,
+    gap: 12,
+  },
+  shieldTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  shieldIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: `${colors.accent}1A`,
+  },
+  shieldInfo: {
+    flex: 1,
+    gap: 3,
+  },
+  shieldTitle: {
+    color: colors.text,
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  shieldDesc: {
+    color: colors.textMuted,
+    fontSize: 12.5,
+    lineHeight: 17,
+  },
+  shieldFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  shieldMeta: {
+    color: colors.textMuted,
+    fontSize: 12.5,
+    fontWeight: '700',
+  },
+  shieldButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: colors.warning,
+    borderRadius: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+  },
+  shieldButtonDisabled: {
+    opacity: 0.4,
+  },
+  shieldButtonText: {
+    color: colors.bgDeep,
+    fontSize: 14,
+    fontWeight: '900',
+  },
+  shieldFootnote: {
+    color: colors.textMuted,
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  pressed: {
+    opacity: 0.7,
   },
   status: {
     flexDirection: 'row',

@@ -10,6 +10,7 @@ function completion(category: QuestCategory, xp: number, id = `c-${category}-${x
     at: '2026-06-01T12:00:00.000Z',
     category,
     gold: Math.round(xp / 5),
+    bonusXp: 0,
   };
 }
 

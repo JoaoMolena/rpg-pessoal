@@ -9,10 +9,12 @@ import React, {
   useState,
 } from 'react';
 
-import { buildQuest, buildReward, createInitialState, reducer } from '../domain/reducer';
+import { buildQuest, buildReward, buildShieldPurchase, createInitialState, reducer } from '../domain/reducer';
 import { buildTemplate, planGeneration } from '../domain/recurrence';
-import { goldBalance, goldFromXp } from '../domain/economy';
-import { deriveStats } from '../domain/stats';
+import { goldFromXp } from '../domain/economy';
+import { SHIELD_COST, SHIELD_MAX } from '../domain/shield';
+import { streakBonusXp } from '../domain/streak';
+import { deriveStats, streakAfterCompletion } from '../domain/stats';
 import { useToday } from '../hooks/useToday';
 import { clearState, loadState, saveState } from '../storage/storage';
 import type {
@@ -35,8 +37,11 @@ import { didLevelUp, getLevelInfo, type LevelInfo } from '../utils/level';
 export interface CompletionFeedback {
   questId: string;
   title: string;
+  /** XP total creditado (missão + bônus de sequência). */
   xp: number;
   gold: number;
+  /** Parte do `xp` vinda da sequência (0 quando não houve bônus). */
+  bonusXp: number;
 }
 
 export interface GameContextValue {
@@ -82,6 +87,11 @@ export interface GameContextValue {
   deleteReward: (id: string) => void;
   /** Resgata uma recompensa; devolve `false` quando o ouro não é suficiente. */
   redeemReward: (reward: Reward) => boolean;
+  /**
+   * Compra um escudo de sequência; devolve `false` quando falta ouro ou a
+   * reserva já está cheia (`SHIELD_MAX`).
+   */
+  buyShield: () => boolean;
   resetProgress: () => void;
   /** Substitui todo o progresso por um estado importado (backup já validado). */
   importState: (next: AppState) => void;
@@ -102,6 +112,10 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const today = useToday();
   // Pico de XP já visto na sessão: base para celebrar o level-up de forma justa.
   const maxXpRef = useRef<number | null>(null);
+
+  // Estatísticas derivadas (XP, nível, sequência, ouro, escudos...).
+  // Ficam fora do memo do contexto para alimentar também os callbacks.
+  const stats = useMemo(() => deriveStats(state, today), [state, today]);
 
   // Carrega o progresso salvo ao iniciar.
   useEffect(() => {
@@ -158,16 +172,14 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     (id: string) => {
       const quest = state.quests.find((item) => item.id === id);
       if (!quest) return;
+      // O bônus de sequência vale a sequência que o jogador passa a ter hoje.
+      const bonusXp = streakBonusXp(quest.xpReward, streakAfterCompletion(state, today));
+      const xp = quest.xpReward + bonusXp;
+      // O bônus é XP (nível e atributos); o ouro segue o ritmo da dificuldade.
+      const gold = goldFromXp(quest.xpReward);
       // Concluir mostra o feedback (`+XP` + "Desfazer"); desmarcar apenas limpa.
       setCompletion(
-        quest.completed
-          ? null
-          : {
-              questId: id,
-              title: quest.title,
-              xp: quest.xpReward,
-              gold: goldFromXp(quest.xpReward),
-            }
+        quest.completed ? null : { questId: id, title: quest.title, xp, gold, bonusXp }
       );
       dispatch({
         type: 'TOGGLE_QUEST',
@@ -175,14 +187,15 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         completion: {
           id: createId(),
           questId: id,
-          xp: quest.xpReward,
+          xp,
           at: new Date().toISOString(),
           category: quest.category,
-          gold: goldFromXp(quest.xpReward),
+          gold,
+          bonusXp,
         },
       });
     },
-    [state.quests]
+    [state, today]
   );
 
   const dismissCompletion = useCallback(() => setCompletion(null), []);
@@ -234,11 +247,12 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const redeemReward = useCallback(
     (reward: Reward): boolean => {
       // Checa o saldo aqui para poder avisar a UI; o reducer repete a checagem.
-      if (reward.cost > goldBalance(state.completions, state.purchases)) return false;
+      if (reward.cost > stats.gold) return false;
       dispatch({
         type: 'REDEEM_REWARD',
         purchase: {
           id: createId(),
+          kind: 'reward',
           rewardId: reward.id,
           title: reward.title,
           cost: reward.cost,
@@ -247,8 +261,18 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       });
       return true;
     },
-    [state.completions, state.purchases]
+    [stats.gold]
   );
+
+  const buyShield = useCallback((): boolean => {
+    if (stats.shieldsAvailable >= SHIELD_MAX || stats.gold < SHIELD_COST) return false;
+    dispatch({
+      type: 'REDEEM_SHIELD',
+      purchase: buildShieldPurchase(createId(), new Date().toISOString()),
+      usedShields: stats.shieldsUsed,
+    });
+    return true;
+  }, [stats.shieldsAvailable, stats.shieldsUsed, stats.gold]);
 
   const resetProgress = useCallback(() => {
     clearState();
@@ -269,7 +293,6 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const dismissLevelUp = useCallback(() => setLevelUp(null), []);
 
   const value = useMemo<GameContextValue>(() => {
-    const stats = deriveStats(state, today);
     const todayQuests = state.quests.filter((quest) => quest.date === today);
     const overdueQuests = state.quests.filter((quest) => quest.date !== today && !quest.completed);
     const pendingCount = [...todayQuests, ...overdueQuests].filter((quest) => !quest.completed).length;
@@ -303,6 +326,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       updateReward,
       deleteReward,
       redeemReward,
+      buyShield,
       resetProgress,
       importState,
       dismissLevelUp,
@@ -311,6 +335,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     };
   }, [
     state,
+    stats,
     hydrated,
     levelUp,
     completion,
@@ -329,6 +354,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     updateReward,
     deleteReward,
     redeemReward,
+    buyShield,
     resetProgress,
     importState,
     dismissLevelUp,

@@ -16,6 +16,7 @@ import {
 import { dateKey } from '../utils/dates';
 import { createId } from '../utils/id';
 import { goldBalance } from './economy';
+import { SHIELD_COST, SHIELD_MAX } from './shield';
 import { totalXpFrom } from './stats';
 
 /**
@@ -42,6 +43,11 @@ export type Action =
   | { type: 'UPDATE_REWARD'; id: string; input: RewardInput }
   | { type: 'DELETE_REWARD'; id: string }
   | { type: 'REDEEM_REWARD'; purchase: Purchase }
+  /**
+   * Compra de escudo. `usedShields` entra pela action porque depende de "hoje"
+   * (quantos dias já foram cobertos) — o reducer continua sem olhar o relógio.
+   */
+  | { type: 'REDEEM_SHIELD'; purchase: Purchase; usedShields: number }
   | { type: 'RESET'; state: AppState };
 
 /** Monta uma missão a partir do formulário. `id` e `date` vêm de fora. */
@@ -76,6 +82,18 @@ export function buildReward(input: RewardInput, id: string): Reward {
     title: input.title.trim(),
     description: input.description?.trim() || undefined,
     cost: rewardCost(input.cost),
+  };
+}
+
+/** Monta o resgate de um escudo de sequência. `id` e `at` vêm de fora. */
+export function buildShieldPurchase(id: string, at: string): Purchase {
+  return {
+    id,
+    kind: 'shield',
+    rewardId: 'escudo-de-sequencia',
+    title: 'Escudo de sequência',
+    cost: SHIELD_COST,
+    at,
   };
 }
 
@@ -259,6 +277,14 @@ export function reducer(state: AppState, action: Action): AppState {
 
     case 'REDEEM_REWARD': {
       // Segunda barreira além da UI: resgatar sem saldo não faz nada.
+      if (action.purchase.cost > goldBalance(state.completions, state.purchases)) return state;
+      return { ...state, purchases: [action.purchase, ...state.purchases] };
+    }
+
+    case 'REDEEM_SHIELD': {
+      const owned = state.purchases.filter((purchase) => purchase.kind === 'shield').length;
+      // Reserva cheia: mais escudos só gastariam ouro sem proteger nada.
+      if (owned - action.usedShields >= SHIELD_MAX) return state;
       if (action.purchase.cost > goldBalance(state.completions, state.purchases)) return state;
       return { ...state, purchases: [action.purchase, ...state.purchases] };
     }
