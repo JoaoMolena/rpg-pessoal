@@ -43,3 +43,6 @@ yarn-error.*
 # local artifacts (APKs, logs)
 *.apk
 *.log
+
+# test coverage
+coverage/

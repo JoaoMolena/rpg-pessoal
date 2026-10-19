@@ -22,7 +22,7 @@ export interface LevelInfo {
   levelRange: number;
 }
 
-export const RANKS: ReadonlyArray<{ minLevel: number; name: string }> = [
+export const RANKS: readonly { minLevel: number; name: string }[] = [
   { minLevel: 1, name: 'Recruta' },
   { minLevel: 3, name: 'Aprendiz' },
   { minLevel: 5, name: 'Aventureiro' },
@@ -51,6 +51,15 @@ export function getRank(level: number): string {
     if (level >= entry.minLevel) rank = entry.name;
   }
   return rank;
+}
+
+/**
+ * Verdadeiro apenas quando o novo **pico** de XP cruza para um nível acima do
+ * pico anterior. Comparar picos (e não o XP atual) evita que desmarcar e marcar
+ * a mesma missão dispare a celebração de level-up repetidamente.
+ */
+export function didLevelUp(previousMaxXp: number, newMaxXp: number): boolean {
+  return levelFromXp(newMaxXp) > levelFromXp(previousMaxXp);
 }
 
 /** Calcula todas as informações de progresso do jogador a partir do XP total. */
