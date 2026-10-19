@@ -3,8 +3,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { AppState } from '../types';
 import { migrateState } from './migrations';
 
-// A chave permanece a mesma da v1 de propósito: é por ela que o estado antigo
-// é encontrado e migrado para a v2.
+// A chave permanece a de sempre (`@rpg-pessoal/...`) de propósito — inclusive
+// depois do app virar **Loopin**: é por ela que o progresso salvo antes do
+// rebrand é encontrado e migrado. Trocar a chave orfanaria o histórico de quem
+// já joga (a chave não aparece para o usuário).
 const STORAGE_KEY = '@rpg-pessoal/state/v1';
 
 /** Carrega, valida e migra o estado salvo (ou null na primeira execução). */

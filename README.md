@@ -1,4 +1,4 @@
-# ⚔️ RPG Pessoal
+# 🔁 Loopin
 
 Um aplicativo mobile de **RPG pessoal** construído com **React Native + Expo + TypeScript**.
 Transforme suas tarefas diárias em missões, ganhe XP, soba de nível e mantenha sua sequência de constância — tudo com um visual moderno em modo escuro.

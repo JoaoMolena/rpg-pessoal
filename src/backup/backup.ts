@@ -27,7 +27,7 @@ export async function exportBackup(state: AppState): Promise<ExportBackupResult>
 
   await Sharing.shareAsync(file.uri, {
     mimeType: 'application/json',
-    dialogTitle: 'Salvar backup do RPG Pessoal',
+    dialogTitle: 'Salvar backup do Loopin',
   });
 
   return { shared: true };

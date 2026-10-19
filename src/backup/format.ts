@@ -2,7 +2,7 @@ import { migrateState } from '../storage/migrations';
 import type { AppState } from '../types';
 
 /** Nome do arquivo gerado na exportação. */
-export const BACKUP_FILENAME = 'rpg-pessoal-backup.json';
+export const BACKUP_FILENAME = 'loopin-backup.json';
 
 /** Serializa o estado para o arquivo de backup (JSON legível). */
 export function serializeBackup(state: AppState): string {
