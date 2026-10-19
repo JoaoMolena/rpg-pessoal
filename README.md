@@ -9,6 +9,7 @@ Transforme suas tarefas diárias em missões, ganhe XP, soba de nível e mantenh
 - **Missões recorrentes**: crie modelos que geram a missão do dia automaticamente — diária, em dias escolhidos da semana ou semanal. A geração é idempotente (abrir o app duas vezes no mesmo dia não duplica) e não retroage: dias não abertos não criam missões. Dá para pausar sem apagar o histórico.
 - **Notificações locais**: lembrete diário e aviso de "sequência em risco" no fim do dia, cada um com horário configurável. Roda no próprio aparelho, sem internet; a permissão é pedida só quando você ativa uma opção.
 - **Sistema de XP e níveis**: cada missão concluída concede XP conforme a dificuldade; o nível é calculado a partir do XP acumulado, com curva de dificuldade crescente.
+- **Atributos por categoria**: cada uma das 7 categorias tem XP e **nível próprio** (o "atributo"). O XP da categoria fica congelado no momento da conclusão, então editar a missão depois não move atributo.
 - **Títulos (ranks)**: Recruta → Aprendiz → Aventureiro → Herói → Veterano → Elite → Mestre → Lenda → Mítico.
 - **Sequência (streak)**: acompanhe os dias consecutivos com pelo menos uma missão concluída. O streak volta a zero ao passar um dia inteiro sem concluir nada (não há bônus de XP por constância).
 - **Tela de Progresso**: estatísticas, conquistas desbloqueáveis, progresso por categoria e histórico recente.
@@ -18,7 +19,7 @@ Transforme suas tarefas diárias em missões, ganhe XP, soba de nível e mantenh
 - **Backup dos dados**: exporte todo o progresso num arquivo `.json` (para guardar ou trocar de aparelho) e importe de volta. A importação valida o arquivo, migra backups antigos e confirma antes de substituir o progresso atual.
 - **Perfil personalizável**: nome e avatar do herói.
 - **Persistência local**: todo o progresso é salvo com `AsyncStorage` e sobrevive ao fechamento do app.
-- **Dados versionados**: o estado salvo tem `schemaVersion` e passa por migração/validação na leitura (v1 → v2 → v3 → v4), sem perder XP.
+- **Dados versionados**: o estado salvo tem `schemaVersion` e passa por migração/validação na leitura (v1 → v2 → v3 → v4 → v5), sem perder XP.
 - **Modo escuro moderno**: paleta escura com gradientes roxo/ciano, cartões arredondados e sombras suaves.
 
 ## 🚀 Como executar
@@ -45,7 +46,7 @@ src/
 │   │   ├── _layout.tsx     # Navegação por abas
 │   │   ├── index.tsx       # Início (painel do herói + missões de hoje)
 │   │   ├── missoes.tsx     # Missões (filtros: hoje/pendentes/concluídas/todas)
-│   │   └── progresso.tsx   # Progresso (stats, conquistas, histórico)
+│   │   └── progresso.tsx   # Progresso (stats, atributos, conquistas, histórico)
 │   ├── nova-missao.tsx     # Modal de criação/edição de missão
 │   ├── recorrentes.tsx     # Modal de missões recorrentes (listar/pausar/excluir)
 │   ├── nova-recorrente.tsx # Modal de criação/edição de missão recorrente
@@ -60,7 +61,8 @@ src/
 ├── domain/                 # Regras puras (reducer + estatísticas derivadas)
 │   ├── reducer.ts          # Reducer puro (ações entram com id/data prontos)
 │   ├── recurrence.ts       # Recorrência pura (casamento por dia + plano de geração)
-│   └── stats.ts            # XP, streak e nível derivados do log de conclusões
+│   ├── attributes.ts       # Atributos por categoria (XP e nível próprios por área)
+│   └── stats.ts            # XP, streak, nível e atributos derivados do log
 ├── hooks/
 │   ├── useToday.ts         # "Hoje" reativo (AppState + virada do dia)
 │   └── useReduceMotion.ts  # Preferência "reduzir movimento" do sistema
@@ -70,7 +72,7 @@ src/
 │   └── useNotificationSync.ts # Sincroniza os lembretes com o estado
 ├── storage/
 │   ├── storage.ts          # Leitura/escrita no AsyncStorage
-│   └── migrations.ts       # Validação + migração de schema (v1 → v2 → v3 → v4)
+│   └── migrations.ts       # Validação + migração de schema (v1 → v2 → v3 → v4 → v5)
 ├── theme/game.ts           # Cores, gradientes, categorias, dificuldades, conquistas
 ├── types/index.ts          # Tipos do domínio
 └── utils/

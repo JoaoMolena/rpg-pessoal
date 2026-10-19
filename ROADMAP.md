@@ -54,4 +54,26 @@ Objetivo: montar a base de qualidade (testes, lint, CI) e corrigir os 10 bugs ab
 - **Feedback de conclusão**: ✅ haptics, "+XP" animado e toast com "Desfazer", respeitando "reduzir movimento" do sistema.
 - ✅ **Backup**: exportar e importar em JSON, com validação e confirmação antes de sobrescrever.
 
-> Fases 3+ ainda não definidas.
+---
+
+## Fase 3 — Atributos, economia, streak e épicas (em execução)
+
+Entregue em **PRs separados**, um por item, com `tsc`, lint, testes e CI verdes. Cada item tem uma mini-spec (modelo de dados, fórmulas/balanceamento e impacto na migração) na descrição do respectivo PR.
+
+| # | Item | Status |
+|---|------|--------|
+| a | Atributos por categoria com nível próprio | ✅ |
+| b | Ouro e loja de recompensas personalizadas | ⏳ |
+| c | Escudo de streak e bônus de XP por sequência | ⏳ |
+| d | Missões épicas com subtarefas | ⏳ |
+| e | Novas conquistas com data e toast | ⏳ |
+
+### (a) Atributos por categoria — decisões
+
+- **Modelo**: `Completion` passa a guardar `category` **congelada na conclusão** (junto do `xp`) — editar categoria/dificuldade depois não move atributo. `schemaVersion` 4 → 5.
+- **Fórmula**: mesma curva do nível global (`50 * (L − 1)²`), aplicada só ao XP da categoria. Invariante: se todo o XP fosse de uma categoria, o atributo teria o nível global; atributo nunca passa o global.
+- **Balanceamento** (175 XP/dia: 1 épica + 1 difícil + 1 média; Saúde 30% · Trabalho 25% · Estudo 15% · Finanças 10% · Outros 10% · Lazer 5% · Social 5%): níveis **3–6 em 30 dias** e **4–10 em 90 dias**, contra **11** e **18** do nível global.
+- **Migração v4 → v5**: backfill da categoria pela missão de origem (`questId` inexistente cai em `outros`). Sem perda de XP; backups antigos migram no import.
+- **Derivado** em `src/domain/attributes.ts` — o único dado novo persistido é a categoria dentro do log de conclusões.
+
+> Fases 4+ ainda não definidas.
