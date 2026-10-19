@@ -1,7 +1,9 @@
 import { StatusBar } from 'expo-status-bar';
 import { Stack } from 'expo-router';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import * as SplashScreen from 'expo-splash-screen';
+import { ActivityIndicator, Image, StyleSheet, View } from 'react-native';
 
+import splashLogo from '../../assets/splash-icon.png';
 import { ConfirmProvider } from '../components/ConfirmDialog';
 import { AchievementFeedback } from '../components/AchievementFeedback';
 import { CompletionFeedback } from '../components/CompletionFeedback';
@@ -11,13 +13,21 @@ import { useNotificationSync } from '../notifications/useNotificationSync';
 import { colors } from '../theme/game';
 
 /**
+ * A splash nativa desvanece em vez de piscar (o Android 12+ tem animação
+ * própria de saída; o fade vale para o iOS).
+ */
+SplashScreen.setOptions({ duration: 600, fade: true });
+
+/**
  * Tela de carregamento exibida enquanto o progresso salvo é lido.
- * Evita o "flash" do estado inicial ("Herói / 0 XP") antes da hidratação.
+ * Evita o "flash" do estado inicial ("Herói / 0 XP") antes da hidratação — e
+ * usa a mesma imagem e o mesmo fundo da splash nativa, para a passagem de uma
+ * para a outra não ter salto de cor nem de logo.
  */
 function HydrationSplash() {
   return (
     <View style={styles.splash}>
-      <Text style={styles.splashEmoji}>⚔️</Text>
+      <Image source={splashLogo} style={styles.splashLogo} />
       <ActivityIndicator color={colors.primary} />
     </View>
   );
@@ -95,9 +105,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 18,
-    backgroundColor: colors.bgDeep,
+    // O mesmo fundo da splash nativa (app.json) e das telas: sem salto de cor.
+    backgroundColor: colors.bg,
   },
-  splashEmoji: {
-    fontSize: 48,
+  splashLogo: {
+    width: 200,
+    height: 200,
   },
 });
