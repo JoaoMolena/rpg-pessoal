@@ -1,15 +1,16 @@
 import { useMemo, useState } from 'react';
-import { Alert, FlatList, StyleSheet, Text, View } from 'react-native';
+import { FlatList, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 
 import { ChipSelector, type ChipOption } from '../../components/ChipSelector';
+import { useConfirm } from '../../components/ConfirmDialog';
 import { EmptyState } from '../../components/EmptyState';
 import { PrimaryButton } from '../../components/PrimaryButton';
 import { QuestCard } from '../../components/QuestCard';
 import { useGame } from '../../context/GameContext';
 import { colors } from '../../theme/game';
 import type { Quest } from '../../types';
-import { dateKey } from '../../utils/dates';
+import { missionCountLabel } from '../../utils/format';
 
 type Filter = 'hoje' | 'pendentes' | 'concluidas' | 'todas';
 
@@ -41,10 +42,10 @@ const EMPTY_MESSAGES: Record<Filter, { title: string; message: string }> = {
 
 export default function MissionsScreen() {
   const { state, todayQuests, toggleQuest, deleteQuest, addQuest } = useGame();
+  const confirm = useConfirm();
   const [filter, setFilter] = useState<Filter>('hoje');
 
   const data = useMemo(() => {
-    const today = dateKey();
     const isPending = (q: Quest) => !q.completed;
     switch (filter) {
       case 'hoje':
@@ -60,11 +61,15 @@ export default function MissionsScreen() {
     }
   }, [filter, state.quests, todayQuests]);
 
-  const confirmDelete = (title: string, id: string) =>
-    Alert.alert('Excluir missão', `Deseja excluir "${title}"?`, [
-      { text: 'Cancelar', style: 'cancel' },
-      { text: 'Excluir', style: 'destructive', onPress: () => deleteQuest(id) },
-    ]);
+  const confirmDelete = async (title: string, id: string) => {
+    const confirmed = await confirm({
+      title: 'Excluir missão',
+      message: `Deseja excluir "${title}"?`,
+      confirmLabel: 'Excluir',
+      destructive: true,
+    });
+    if (confirmed) deleteQuest(id);
+  };
 
   // Dica rápida: cria uma missão de exemplo instantaneamente quando a lista está vazia.
   const addQuickQuest = () => {
@@ -84,7 +89,7 @@ export default function MissionsScreen() {
           <View style={styles.header}>
             <ChipSelector options={FILTERS} value={filter} onChange={setFilter} />
             <Text style={styles.summary}>
-              {data.length} missão{data.length === 1 ? '' : 'ões'} ·{' '}
+              {missionCountLabel(data.length)} ·{' '}
               {data.reduce((sum, q) => sum + q.xpReward, 0)} XP em jogo
             </Text>
           </View>
