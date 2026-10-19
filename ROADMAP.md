@@ -47,7 +47,7 @@ Objetivo: montar a base de qualidade (testes, lint, CI) e corrigir os 10 bugs ab
 
 ---
 
-## Fase 2 — Recorrências, notificações, feedback e backup (em execução)
+## Fase 2 — Recorrências, notificações, feedback e backup (concluída)
 
 - ✅ **Missões recorrentes**: novo modelo `QuestTemplate` (título, categoria, dificuldade, recorrência diária / dias da semana / semanal, ativo, última data gerada) com geração **idempotente** (abrir o app duas vezes no mesmo dia não duplica; dias perdidos não geram retroativos) e tela para criar, editar e pausar.
 - **Notificações locais** (`expo-notifications`): ✅ lembrete diário configurável e aviso de streak em risco, pedindo permissão no momento certo (não no boot).
