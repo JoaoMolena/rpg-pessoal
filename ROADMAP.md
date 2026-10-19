@@ -63,7 +63,7 @@ Entregue em **PRs separados**, um por item, com `tsc`, lint, testes e CI verdes.
 | # | Item | Status |
 |---|------|--------|
 | a | Atributos por categoria com nível próprio | ✅ |
-| b | Ouro e loja de recompensas personalizadas | ⏳ |
+| b | Ouro e loja de recompensas personalizadas | ✅ |
 | c | Escudo de streak e bônus de XP por sequência | ⏳ |
 | d | Missões épicas com subtarefas | ⏳ |
 | e | Novas conquistas com data e toast | ⏳ |
@@ -75,5 +75,14 @@ Entregue em **PRs separados**, um por item, com `tsc`, lint, testes e CI verdes.
 - **Balanceamento** (175 XP/dia: 1 épica + 1 difícil + 1 média; Saúde 30% · Trabalho 25% · Estudo 15% · Finanças 10% · Outros 10% · Lazer 5% · Social 5%): níveis **3–6 em 30 dias** e **4–10 em 90 dias**, contra **11** e **18** do nível global.
 - **Migração v4 → v5**: backfill da categoria pela missão de origem (`questId` inexistente cai em `outros`). Sem perda de XP; backups antigos migram no import.
 - **Derivado** em `src/domain/attributes.ts` — o único dado novo persistido é a categoria dentro do log de conclusões.
+
+### (b) Ouro e loja de recompensas — decisões
+
+- **Modelo**: `Completion` ganha `gold` **congelado na conclusão** (mesmo princípio do `xp` e da `category`); `AppState` ganha `rewards: Reward[]` e `purchases: Purchase[]`. O resgate guarda um **snapshot** de título e preço, então editar/excluir a recompensa não reescreve o histórico nem devolve ouro. `schemaVersion` 5 → 6.
+- **Fórmula**: `goldFromXp(xp) = round(xp / 5)` — fácil 2 · média 5 · difícil 10 · épica 20. `saldo = max(0, Σ gold − Σ custoDosResgates)`.
+- **Balanceamento** (175 XP/dia = 100 + 50 + 25): **35 de ouro/dia** — 1.050 em 30 dias, 3.150 em 90 dias. Ancoragem de preços: 25 ≈ 0,7 dia · 100 ≈ 2,9 dias · 250 ≈ 7,1 dias · 500 ≈ 14,3 dias.
+- **Invariante**: o saldo é derivado do log + dos resgates (nunca persistido) e o resgate sem saldo é bloqueado **no reducer** (não só na UI).
+- **Migração v5 → v6**: backfill de `gold` a partir do `xp` (`round(xp/5)`); `rewards`/`purchases` ausentes viram `[]`; entradas inválidas (título vazio, preço ≤ 0, resgate sem data) são descartadas na validação. Backups antigos migram no import.
+- **UI**: modal `loja` (saldo, recompensas ordenadas por preço e histórico de resgates) e modal `nova-recompensa`; atalhos na pílula de ouro do cartão do herói e em Editar perfil. O feedback de conclusão passou a mostrar o ouro ganho.
 
 > Fases 4+ ainda não definidas.

@@ -75,7 +75,9 @@ export function CompletionFeedback() {
           <Text style={styles.toastTitle} numberOfLines={1}>
             {completion.title}
           </Text>
-          <Text style={styles.toastSubtitle}>Missão concluída · +{completion.xp} XP</Text>
+          <Text style={styles.toastSubtitle}>
+            Missão concluída · +{completion.xp} XP · +{completion.gold} de ouro
+          </Text>
         </View>
         <Pressable
           testID="completion-undo"

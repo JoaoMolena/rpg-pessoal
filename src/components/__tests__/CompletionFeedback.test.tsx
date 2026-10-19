@@ -70,6 +70,8 @@ describe('CompletionFeedback', () => {
     await waitFor(() => expect(getByText('Desfazer')).toBeTruthy());
     expect(getByText('+10 XP')).toBeTruthy();
     expect(getByText('Beber água')).toBeTruthy();
+    // 10 XP (fácil) também rendem 2 de ouro.
+    expect(getByText('Missão concluída · +10 XP · +2 de ouro')).toBeTruthy();
   });
 
   it('"Desfazer" desmarca a missão e fecha o feedback', async () => {

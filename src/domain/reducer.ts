@@ -5,13 +5,17 @@ import {
   type AppState,
   type Completion,
   type NotificationSettings,
+  type Purchase,
   type Quest,
   type QuestInput,
   type QuestTemplate,
   type QuestTemplateInput,
+  type Reward,
+  type RewardInput,
 } from '../types';
 import { dateKey } from '../utils/dates';
 import { createId } from '../utils/id';
+import { goldBalance } from './economy';
 import { totalXpFrom } from './stats';
 
 /**
@@ -34,6 +38,10 @@ export type Action =
   | { type: 'DELETE_TEMPLATE'; id: string }
   | { type: 'GENERATE_QUESTS'; quests: Quest[]; date: string }
   | { type: 'SET_NOTIFICATIONS'; settings: NotificationSettings }
+  | { type: 'ADD_REWARD'; reward: Reward }
+  | { type: 'UPDATE_REWARD'; id: string; input: RewardInput }
+  | { type: 'DELETE_REWARD'; id: string }
+  | { type: 'REDEEM_REWARD'; purchase: Purchase }
   | { type: 'RESET'; state: AppState };
 
 /** Monta uma missão a partir do formulário. `id` e `date` vêm de fora. */
@@ -54,6 +62,21 @@ export function buildQuest(input: QuestInput, id: string, date: string): Quest {
 function withMaxTotalXp(state: AppState): AppState {
   const totalXp = totalXpFrom(state.completions);
   return totalXp > state.maxTotalXp ? { ...state, maxTotalXp: totalXp } : state;
+}
+
+/** Preço em ouro sempre inteiro e positivo (o formulário pode enviar lixo). */
+function rewardCost(cost: number): number {
+  return Number.isFinite(cost) ? Math.max(1, Math.round(cost)) : 1;
+}
+
+/** Monta uma recompensa a partir do formulário. `id` vem de fora. */
+export function buildReward(input: RewardInput, id: string): Reward {
+  return {
+    id,
+    title: input.title.trim(),
+    description: input.description?.trim() || undefined,
+    cost: rewardCost(input.cost),
+  };
 }
 
 /**
@@ -83,6 +106,8 @@ export function createInitialState(now: Date = new Date()): AppState {
     maxTotalXp: 0,
     templates: [],
     notifications: DEFAULT_NOTIFICATION_SETTINGS,
+    rewards: [],
+    purchases: [],
   };
 }
 
@@ -207,6 +232,36 @@ export function reducer(state: AppState, action: Action): AppState {
 
     case 'SET_NOTIFICATIONS':
       return { ...state, notifications: action.settings };
+
+    case 'ADD_REWARD':
+      return { ...state, rewards: [action.reward, ...state.rewards] };
+
+    case 'UPDATE_REWARD': {
+      const { input } = action;
+      return {
+        ...state,
+        rewards: state.rewards.map((reward) =>
+          reward.id === action.id
+            ? {
+                ...reward,
+                title: input.title.trim(),
+                description: input.description?.trim() || undefined,
+                cost: rewardCost(input.cost),
+              }
+            : reward
+        ),
+      };
+    }
+
+    case 'DELETE_REWARD':
+      // Os resgates já feitos continuam no histórico (o ouro gasto não volta).
+      return { ...state, rewards: state.rewards.filter((reward) => reward.id !== action.id) };
+
+    case 'REDEEM_REWARD': {
+      // Segunda barreira além da UI: resgatar sem saldo não faz nada.
+      if (action.purchase.cost > goldBalance(state.completions, state.purchases)) return state;
+      return { ...state, purchases: [action.purchase, ...state.purchases] };
+    }
 
     case 'RESET':
       return action.state;

@@ -2,6 +2,7 @@ import type { AppState, Completion, GameStats } from '../types';
 import { addDaysToKey, dateKey, dateKeyFromIso } from '../utils/dates';
 import { levelFromXp } from '../utils/level';
 import { deriveAttributes } from './attributes';
+import { goldBalance, goldEarned, goldSpent } from './economy';
 
 /** Soma do XP de todas as conclusões. */
 export function totalXpFrom(completions: Completion[]): number {
@@ -70,5 +71,8 @@ export function deriveStats(state: AppState, today: string = dateKey()): GameSta
     xpToday: xpOnDay(state.completions, today),
     level: levelFromXp(totalXp),
     attributes: deriveAttributes(state.completions),
+    gold: goldBalance(state.completions, state.purchases),
+    goldEarned: goldEarned(state.completions),
+    goldSpent: goldSpent(state.purchases),
   };
 }

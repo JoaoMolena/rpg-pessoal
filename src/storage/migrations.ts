@@ -1,4 +1,5 @@
 import { totalXpFrom } from '../domain/stats';
+import { goldFromXp } from '../domain/economy';
 import { CATEGORY_KEYS, DIFFICULTIES, DIFFICULTY_KEYS } from '../theme/game';
 import {
   DEFAULT_NOTIFICATION_SETTINGS,
@@ -6,11 +7,13 @@ import {
   type AppState,
   type Completion,
   type NotificationSettings,
+  type Purchase,
   type Quest,
   type QuestCategory,
   type QuestDifficulty,
   type QuestTemplate,
   type Recurrence,
+  type Reward,
   type Weekday,
 } from '../types';
 import { dateKey } from '../utils/dates';
@@ -21,9 +24,9 @@ import { parseTime } from '../utils/time';
  *
  * Toda leitura passa por aqui, de forma que o app nunca recebe um objeto mal
  * formado: campos ausentes ganham valores padrão e estados de versões antigas
- * são migrados (v1 → v2 → v3 → v4 → v5) reconstruindo o log de conclusões e
- * adicionando os campos novos (categoria do log, recorrências, notificações) —
- * sem perder XP.
+ * são migrados (v1 → v2 → v3 → v4 → v5 → v6) reconstruindo o log de conclusões e
+ * adicionando os campos novos (categoria/ouro do log, recorrências,
+ * notificações, loja) — sem perder XP nem ouro.
  */
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -139,12 +142,47 @@ function normalizeCompletion(
     ? raw.category
     : categoryByQuestId.get(questId) ?? 'outros';
 
+  const xp = asNumber(raw.xp, 0);
+  // Até a v5 o log não guardava ouro: reconstrói pela taxa atual (1 a cada 5 XP).
+  // A partir daí o valor fica gravado, então a taxa nunca reprecifica o passado.
+  const gold = Math.max(0, Math.round(asNumber(raw.gold, goldFromXp(xp))));
+
   return {
     id: asString(raw.id, `completion-${questId}-${at}`),
     questId,
-    xp: asNumber(raw.xp, 0),
+    xp,
     at,
     category,
+    gold,
+  };
+}
+
+/** Normaliza uma recompensa da loja (descarta títulos vazios e preços inválidos). */
+function normalizeReward(raw: unknown): Reward | null {
+  if (!isRecord(raw)) return null;
+  const id = asString(raw.id);
+  const title = asString(raw.title).trim();
+  const cost = asNumber(raw.cost, 0);
+  if (!id || !title || cost <= 0) return null;
+
+  const description = asString(raw.description);
+  return { id, title, description: description || undefined, cost: Math.round(cost) };
+}
+
+/** Normaliza um resgate (mantém o snapshot de título e preço). */
+function normalizePurchase(raw: unknown): Purchase | null {
+  if (!isRecord(raw)) return null;
+  const rewardId = asString(raw.rewardId);
+  const at = asString(raw.at);
+  const cost = asNumber(raw.cost, 0);
+  if (!rewardId || !at || cost <= 0) return null;
+
+  return {
+    id: asString(raw.id, `purchase-${rewardId}-${at}`),
+    rewardId,
+    title: asString(raw.title).trim() || 'Recompensa',
+    cost: Math.round(cost),
+    at,
   };
 }
 
@@ -172,6 +210,7 @@ function migrateV1toV2(raw: Record<string, unknown>): AppState {
       xp: quest.xpReward,
       at: legacyCompletionDate(quest),
       category: quest.category,
+      gold: goldFromXp(quest.xpReward),
     }));
 
   const legacyStats = isRecord(raw.stats) ? raw.stats : {};
@@ -184,9 +223,11 @@ function migrateV1toV2(raw: Record<string, unknown>): AppState {
     quests,
     completions,
     maxTotalXp: Math.max(legacyTotalXp, totalXpFrom(completions)),
-    // Recorrências e notificações só existem a partir de versões posteriores.
+    // Recorrências, notificações e loja só existem a partir de versões posteriores.
     templates: [],
     notifications: { ...DEFAULT_NOTIFICATION_SETTINGS },
+    rewards: [],
+    purchases: [],
   };
 }
 
@@ -210,6 +251,16 @@ function normalizeCurrent(raw: Record<string, unknown>): AppState {
     .map(normalizeTemplate)
     .filter((template): template is QuestTemplate => template !== null);
 
+  const rawRewards = Array.isArray(raw.rewards) ? raw.rewards : [];
+  const rewards = rawRewards
+    .map(normalizeReward)
+    .filter((reward): reward is Reward => reward !== null);
+
+  const rawPurchases = Array.isArray(raw.purchases) ? raw.purchases : [];
+  const purchases = rawPurchases
+    .map(normalizePurchase)
+    .filter((purchase): purchase is Purchase => purchase !== null);
+
   return {
     schemaVersion: SCHEMA_VERSION,
     playerName: asString(raw.playerName, 'Herói') || 'Herói',
@@ -219,6 +270,8 @@ function normalizeCurrent(raw: Record<string, unknown>): AppState {
     maxTotalXp: Math.max(asNumber(raw.maxTotalXp, 0), totalXpFrom(completions)),
     templates,
     notifications: normalizeNotifications(raw.notifications),
+    rewards,
+    purchases,
   };
 }
 
