@@ -50,7 +50,7 @@ export default function BackupScreen() {
       if (result.status === 'canceled') return;
 
       if (result.status === 'invalid') {
-        setStatus({ text: 'Arquivo inválido: não parece um backup do RPG Pessoal.', tone: 'error' });
+        setStatus({ text: 'Arquivo inválido: não parece um backup do Loopin.', tone: 'error' });
         return;
       }
 

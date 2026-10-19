@@ -1,4 +1,4 @@
-# ROADMAP — RPG Pessoal
+# ROADMAP — Loopin
 
 Planejamento das próximas fases do app. Cada fase é entregue com **testes**, `tsc`, lint e commits pequenos (um por item).
 
@@ -56,7 +56,7 @@ Objetivo: montar a base de qualidade (testes, lint, CI) e corrigir os 10 bugs ab
 
 ---
 
-## Fase 3 — Atributos, economia, streak e épicas (em execução)
+## Fase 3 — Atributos, economia, streak e épicas (concluída)
 
 Entregue em **PRs separados**, um por item, com `tsc`, lint, testes e CI verdes. Cada item tem uma mini-spec (modelo de dados, fórmulas/balanceamento e impacto na migração) na descrição do respectivo PR.
 
@@ -115,5 +115,14 @@ Entregue em **PRs separados**, um por item, com `tsc`, lint, testes e CI verdes.
 - **Balanceamento** (175 XP/dia) — XP e ouro **intocados**: conquista é leitura do log, nunca crédito. Linha do tempo a 175 XP/dia (1 épica + 1 difícil + 1 média, bônus do item (c) incluso): `Primeiro Passo` e `Caçador de Épicos` no **dia 1**; `Multidisciplinar` no **dia 2**; `Constância` no **dia 3**; `Em Ritmo de Combate` no **dia 4**; `Ascensão` (800 XP) no **dia 5**; `Mil de XP` no **dia 6**; `Semana Perfeita` no **dia 7**; `Matador de Dragões` (10 épicas) no **dia 10**; `Especialista` (atributo nível 5, pela categoria mais forte a 30%) no **dia 16**; `Veterano de Guerra` (50 missões) no **dia 17**; `Mês de Ferro` no **dia 30**; `Centurião` (100 missões) no **dia 34**; `Mestre` (nível 20, 18.050 XP) por volta do **dia 74**. `Guardião`/`Recompensa Merecida` dependem do que o jogador compra (o ouro rende ~3 dias por escudo). Ao fim dos horizontes: **30 dias** → 33 missões, nível 12, recorde 30 dias, ~6.503 XP; **90 dias** → 99 missões, nível 22, recorde 90 dias, ~22.283 XP.
 - **Migração v8 → v9**: `seenAchievements` **ausente** recebe as conquistas já desbloqueadas naquele estado (quem já jogava não leva uma chuva de toasts no primeiro boot após a atualização — nem ao importar um backup antigo); **presente**, é preservado e ids não-string são filtrados. Sem perda de XP, ouro ou histórico.
 - **UI**: a aba Progresso troca o check por um selo **verde com a data** (`Desbloqueada em DD/MM/AAAA`) em cada conquista desbloqueada; o banner de conquista aparece no topo em qualquer tela.
+
+---
+
+## Rebrand: RPG Pessoal → Loopin (concluída)
+
+- ✅ **Nome visível**: `expo.name` vira **Loopin** (é ele que aparece no launcher) e as strings visíveis acompanham (`Salvar backup do Loopin`, `não parece um backup do Loopin`, `loopin-backup.json`, README, ROADMAP, comentário de `level.ts`).
+- ✅ **Ícone**: `assets/*.png` regerados a partir da arte nova (`icon.png` 1024, `android-icon-foreground.png` 512, `android-icon-background.png`, `android-icon-monochrome.png` 432, `favicon.png` 48, `splash-icon.png` 1024). A arte de origem é uma captura 320×256 com uma tarja clara nas duas primeiras linhas e o emblema brilhante em torno de (152, 100): o recorte é um quadrado de 176px centrado no emblema, sem a tarja, redimensionado com Lanczos + leve sharpen. O `backgroundColor` do ícone adaptativo continua `#0B0F1A` (o fundo do app); a camada monocromática vem da luminância do recorte (brilho → branco, fundo → transparente).
+- **Chaves técnicas mantidas de propósito** (nada disso aparece para o usuário e trocar quebraria continuidade): `slug` (`rpg-pessoal`, ligado ao projeto na EAS), `scheme` (`rpgpessoal`), `package`/`bundleIdentifier` (`com.joaomolena.rpgpessoal` — trocar criaria um **app novo**, perdendo o progresso local de quem já joga), `STORAGE_KEY` (`@rpg-pessoal/state/v1`, por onde o estado antigo é encontrado e migrado) e os ids de notificação (`rpg-pessoal/daily-reminder`, `rpg-pessoal/streak-risk`).
+- **Pendente/opcional**: splash nativo (`expo-splash-screen` não está instalado — `splash-icon.png` segue sem uso) e o `⚔️` da splash de hidratação.
 
 > Fases 4+ ainda não definidas.

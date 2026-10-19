@@ -1,5 +1,5 @@
 /**
- * Sistema de níveis do RPG pessoal.
+ * Sistema de níveis do Loopin.
  *
  * O nível é derivado do XP acumulado com a fórmula:
  *
