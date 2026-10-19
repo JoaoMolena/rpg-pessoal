@@ -3,6 +3,7 @@ import { Stack } from 'expo-router';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
 import { ConfirmProvider } from '../components/ConfirmDialog';
+import { CompletionFeedback } from '../components/CompletionFeedback';
 import { LevelUpOverlay } from '../components/LevelUpOverlay';
 import { GameProvider, useGame } from '../context/GameContext';
 import { useNotificationSync } from '../notifications/useNotificationSync';
@@ -61,6 +62,7 @@ function AppShell() {
           options={{ presentation: 'modal', title: 'Lembretes' }}
         />
       </Stack>
+      <CompletionFeedback />
       <LevelUpOverlay />
     </>
   );

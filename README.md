@@ -14,6 +14,7 @@ Transforme suas tarefas diárias em missões, ganhe XP, soba de nível e mantenh
 - **Tela de Progresso**: estatísticas, conquistas desbloqueáveis, progresso por categoria e histórico recente.
 - **Missões atrasadas**: missões não concluídas no dia anterior aparecem destacadas para você não esquecê-las.
 - **Celebração de Level Up**: overlay animado quando você sobe de nível.
+- **Feedback de conclusão**: vibração, "+XP" animado e toast com **"Desfazer"** para desmarcar na hora. Respeita "reduzir movimento" do sistema (sem deslocamentos).
 - **Perfil personalizável**: nome e avatar do herói.
 - **Persistência local**: todo o progresso é salvo com `AsyncStorage` e sobrevive ao fechamento do app.
 - **Dados versionados**: o estado salvo tem `schemaVersion` e passa por migração/validação na leitura (v1 → v2 → v3 → v4), sem perder XP.
@@ -31,7 +32,7 @@ npx expo start
 
 Escaneie o QR code com o app **Expo Go** (Android/iOS), ou pressione `a` (Android) / `i` (iOS) com um emulador aberto.
 
-> Observação: o app usa apenas módulos compatíveis com o Expo Go (`expo-router`, `AsyncStorage`, `LinearGradient`, ícones), então não é necessário build de desenvolvimento.
+> Observação: o app usa apenas módulos compatíveis com o Expo Go (`expo-router`, `AsyncStorage`, `LinearGradient`, ícones, `expo-notifications` local, `expo-haptics`), então não é necessário build de desenvolvimento. Só o *push* remoto do `expo-notifications` exigiria um build de desenvolvimento — o app não usa push.
 
 ## 📁 Estrutura do projeto
 
@@ -49,13 +50,15 @@ src/
 │   ├── nova-recorrente.tsx # Modal de criação/edição de missão recorrente
 │   ├── lembretes.tsx       # Modal de notificações (lembrete diário + sequência)
 │   └── editar-perfil.tsx   # Modal de perfil (nome, avatar, reset)
-├── components/             # Componentes reutilizáveis (ConfirmDialog, TemplateCard, TimeField...)
-├── context/GameContext.tsx # Estado global + persistência + hidratação + geração diária
+├── components/             # Componentes reutilizáveis (ConfirmDialog, TemplateCard, TimeField, CompletionFeedback...)
+├── context/GameContext.tsx # Estado global + persistência + hidratação + geração diária + feedback
 ├── domain/                 # Regras puras (reducer + estatísticas derivadas)
 │   ├── reducer.ts          # Reducer puro (ações entram com id/data prontos)
 │   ├── recurrence.ts       # Recorrência pura (casamento por dia + plano de geração)
 │   └── stats.ts            # XP, streak e nível derivados do log de conclusões
-├── hooks/useToday.ts       # "Hoje" reativo (AppState + virada do dia)
+├── hooks/
+│   ├── useToday.ts         # "Hoje" reativo (AppState + virada do dia)
+│   └── useReduceMotion.ts  # Preferência "reduzir movimento" do sistema
 ├── notifications/          # Notificações locais (expo-notifications)
 │   ├── plan.ts             # Plano de agendamento puro (o que cancelar/agendar)
 │   ├── notifications.ts    # Executa o plano (permissão, canal Android, agendamentos)
@@ -69,6 +72,7 @@ src/
     ├── level.ts            # Fórmulas de nível e ranks
     ├── dates.ts            # Utilitários de data (dias, streak, saudações)
     ├── time.ts             # Horários "HH:MM" (parse/format)
+    ├── haptics.ts          # Vibrações (expo-haptics)
     ├── format.ts           # Formatação (plural de missões)
     └── id.ts               # Gerador de IDs
 ```
@@ -109,4 +113,4 @@ A curva quadrática faz o progresso ficar mais desafiador conforme você evolui.
 - React Native 0.88 + React 19
 - TypeScript (modo estrito)
 - `@react-native-async-storage/async-storage` (persistência)
-- `expo-linear-gradient` (gradientes) · `@expo/vector-icons` (ícones Material Community) · `expo-notifications` (notificações locais)
+- `expo-linear-gradient` (gradientes) · `@expo/vector-icons` (ícones Material Community) · `expo-notifications` (notificações locais) · `expo-haptics` (vibração)

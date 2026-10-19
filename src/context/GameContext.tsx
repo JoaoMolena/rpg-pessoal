@@ -27,6 +27,13 @@ import { dateKey } from '../utils/dates';
 import { createId } from '../utils/id';
 import { didLevelUp, getLevelInfo, type LevelInfo } from '../utils/level';
 
+/** Dados da última missão concluída, usados pelo feedback (`+XP` e "Desfazer"). */
+export interface CompletionFeedback {
+  questId: string;
+  title: string;
+  xp: number;
+}
+
 export interface GameContextValue {
   /** Estado persistido (missões + log de conclusões). */
   state: AppState;
@@ -37,6 +44,8 @@ export interface GameContextValue {
   hydrated: boolean;
   /** Informações do novo nível quando houver level up (aguardando confirmação). */
   levelUp: LevelInfo | null;
+  /** Última conclusão (feedback transitório — não é persistido). */
+  completion: CompletionFeedback | null;
   /** Chave (YYYY-MM-DD) do dia atual, reativa à virada do dia. */
   today: string;
   /** Missões criadas hoje. */
@@ -61,6 +70,10 @@ export interface GameContextValue {
   setPlayer: (name: string, avatar: string) => void;
   resetProgress: () => void;
   dismissLevelUp: () => void;
+  /** Fecha o feedback de conclusão (sem desfazer nada). */
+  dismissCompletion: () => void;
+  /** Desmarca a missão recém-concluída, removendo o XP ganho. */
+  undoCompletion: () => void;
 }
 
 const GameContext = createContext<GameContextValue | null>(null);
@@ -69,6 +82,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(reducer, undefined, () => createInitialState());
   const [hydrated, setHydrated] = useState(false);
   const [levelUp, setLevelUp] = useState<LevelInfo | null>(null);
+  const [completion, setCompletion] = useState<CompletionFeedback | null>(null);
   const today = useToday();
   // Pico de XP já visto na sessão: base para celebrar o level-up de forma justa.
   const maxXpRef = useRef<number | null>(null);
@@ -128,6 +142,10 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     (id: string) => {
       const quest = state.quests.find((item) => item.id === id);
       if (!quest) return;
+      // Concluir mostra o feedback (`+XP` + "Desfazer"); desmarcar apenas limpa.
+      setCompletion(
+        quest.completed ? null : { questId: id, title: quest.title, xp: quest.xpReward }
+      );
       dispatch({
         type: 'TOGGLE_QUEST',
         id,
@@ -136,6 +154,12 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     },
     [state.quests]
   );
+
+  const dismissCompletion = useCallback(() => setCompletion(null), []);
+
+  const undoCompletion = useCallback(() => {
+    if (completion) toggleQuest(completion.questId);
+  }, [completion, toggleQuest]);
 
   const deleteQuest = useCallback((id: string) => {
     dispatch({ type: 'DELETE_QUEST', id });
@@ -168,6 +192,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
   const resetProgress = useCallback(() => {
     clearState();
     setLevelUp(null);
+    setCompletion(null);
     maxXpRef.current = 0;
     dispatch({ type: 'RESET', state: createInitialState() });
   }, []);
@@ -186,6 +211,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       levelInfo: getLevelInfo(stats.totalXp),
       hydrated,
       levelUp,
+      completion,
       today,
       todayQuests,
       overdueQuests,
@@ -204,11 +230,14 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       setPlayer,
       resetProgress,
       dismissLevelUp,
+      dismissCompletion,
+      undoCompletion,
     };
   }, [
     state,
     hydrated,
     levelUp,
+    completion,
     today,
     addQuest,
     updateQuest,
@@ -222,6 +251,8 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     setPlayer,
     resetProgress,
     dismissLevelUp,
+    dismissCompletion,
+    undoCompletion,
   ]);
 
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;
