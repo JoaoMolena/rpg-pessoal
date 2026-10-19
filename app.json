@@ -1,0 +1,46 @@
+{
+  "expo": {
+    "name": "RPG Pessoal",
+    "slug": "rpg-pessoal",
+    "owner": "joaomolena",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "scheme": "rpgpessoal",
+    "userInterfaceStyle": "dark",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.joaomolena.rpgpessoal",
+      "buildNumber": "1"
+    },
+    "android": {
+      "package": "com.joaomolena.rpgpessoal",
+      "versionCode": 1,
+      "adaptiveIcon": {
+        "backgroundColor": "#0B0F1A",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-status-bar",
+      "expo-router",
+      "expo-font"
+    ],
+    "extra": {
+      "router": {
+        "asyncRoutes": {
+          "web": true
+        }
+      },
+      "eas": {
+        "projectId": "b5959b13-dda1-486c-99d4-25d171b4a219"
+      }
+    }
+  }
+}
